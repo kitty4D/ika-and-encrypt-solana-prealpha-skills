@@ -1,0 +1,33 @@
+This repository contains unofficial agent skill text that summarizes and adapts public Solana pre-alpha documentation and APIs from dWallet Labs.
+
+It includes two skills under skills/:
+
+1) ika-solana-prealpha
+
+Upstream source (documentation and SDK layout):
+  https://github.com/dwallet-labs/ika-pre-alpha
+
+The ika-pre-alpha mdbook and related developer prose are licensed to the public
+under Creative Commons Attribution 4.0 International (CC-BY-4.0), per
+LICENSE-docs in that repository:
+  https://github.com/dwallet-labs/ika-pre-alpha/blob/main/LICENSE-docs
+
+Code in ika-pre-alpha is under a separate license (BSD-3-Clause Clear); see:
+  https://github.com/dwallet-labs/ika-pre-alpha/blob/main/LICENSE
+
+2) encrypt-solana-prealpha
+
+Upstream source (documentation, SDK layout, proto):
+  https://github.com/dwallet-labs/encrypt-pre-alpha
+
+The encrypt-pre-alpha mdbook and related developer prose are licensed to the
+public under Creative Commons Attribution 4.0 International (CC-BY-4.0), per
+LICENSE-docs in that repository:
+  https://github.com/dwallet-labs/encrypt-pre-alpha/blob/main/LICENSE-docs
+
+Code in encrypt-pre-alpha is under a separate license (BSD-3-Clause Clear); see:
+  https://github.com/dwallet-labs/encrypt-pre-alpha/blob/main/LICENSE
+
+When sharing this skill material, retain reasonable attribution to dWallet Labs,
+the relevant upstream repository (ika-pre-alpha and/or encrypt-pre-alpha), and
+a link to the CC-BY-4.0 license as required by CC-BY-4.0.

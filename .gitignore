@@ -1,0 +1,15 @@
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE (keep local; don't force team prefs)
+.idea/
+*.swp
+*.swo
+
+# Scratch
+*.local.md
+_upstream_docs/
+.env
+.env.*
