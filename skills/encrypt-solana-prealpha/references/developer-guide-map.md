@@ -66,6 +66,7 @@
 | Pinocchio | https://docs.encrypt.xyz/frameworks/pinocchio.html | `no_std`, CU |
 | Anchor | https://docs.encrypt.xyz/frameworks/anchor.html | Declarative accounts |
 | Native | https://docs.encrypt.xyz/frameworks/native.html | `solana-program` |
+| Quasar | https://docs.encrypt.xyz/frameworks/quasar.html | Zero-copy Quasar programs, `EncryptContext`, `.to_account_view()` |
 
 ---
 
@@ -107,4 +108,4 @@ Subpages under each example follow `02-program.html`, `03-testing.html`, etc., o
 
 ## repo parity
 
-Example **source** paths (not a substitute for the book): `chains/solana/examples/` in `encrypt-pre-alpha` (Pinocchio / Native / Anchor variants per example). Book **PC-Token** / **PC-Swap** ↔ `pc-token/`, `pc-swap/` on disk.
+Example **source** paths (not a substitute for the book): `chains/solana/examples/` in `encrypt-pre-alpha` (Pinocchio / Anchor / Native / Quasar variants per example when upstream ships them). Book **PC-Token** / **PC-Swap** ↔ `pc-token/`, `pc-swap/` on disk.

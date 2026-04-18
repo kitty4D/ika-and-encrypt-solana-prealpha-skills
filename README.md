@@ -11,6 +11,8 @@ this repository bundles **two** unofficial [agent skills](https://vercel.com/kb/
 
 long-form hub docs (preserved from the standalone repos) live in [`README-IKA.md`](README-IKA.md) and [`README-ENCRYPT.md`](README-ENCRYPT.md). Legal: [`LICENSE`](LICENSE), [`NOTICE`](NOTICE).
 
+**changelogs (plain-english, skill-focused):** [`CHANGELOG-IKA.md`](CHANGELOG-IKA.md) · [`CHANGELOG-ENCRYPT.md`](CHANGELOG-ENCRYPT.md) — what changed in each skill when upstream mdbook / `docs/` moved. both stacks are **pre-alpha**: dWallet Labs can ship `docs/` and repo changes often; pins in each skill’s `references/docs-revision.md` can go stale between releases here. when in doubt, trust live [solana pre-alpha docs](https://solana-pre-alpha.ika.xyz/) / [Encrypt developer guide](https://docs.encrypt.xyz/) and re-run the audit scripts below.
+
 ## install (`npx skills`)
 
 ```bash

@@ -4,6 +4,8 @@
 
 normative sources: [Encrypt developer guide](https://docs.encrypt.xyz/) and [dwallet-labs/encrypt-pre-alpha](https://github.com/dwallet-labs/encrypt-pre-alpha). if anything here disagrees with those, trust the live docs and repo.
 
+**changelog (this bundle, root repo):** [`CHANGELOG-ENCRYPT.md`](CHANGELOG-ENCRYPT.md) — human-readable notes when this skill was bumped for upstream `docs/` changes. pre-alpha moves fast; see also [`docs-revision.md`](skills/encrypt-solana-prealpha/references/docs-revision.md) inside the skill.
+
 > [!CAUTION]
 > pre-alpha has **no real encryption** in the sense of production confidentiality: data can be **plaintext on-chain**, devnet is resettable, and interfaces change. read the disclaimer in the official guide before you ship anything user-facing.
 

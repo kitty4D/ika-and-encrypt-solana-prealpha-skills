@@ -2,7 +2,9 @@
 
 **unofficial** agent skill bundle for [ika](https://ika.xyz/) on Solana pre-alpha (`skills/ika-solana-prealpha/`).
 
-source: [github.com/kitty4D/ika-solana-prealpha-skill](https://github.com/kitty4D/ika-solana-prealpha-skill)
+**changelog (this bundle, root repo):** [`CHANGELOG-IKA.md`](CHANGELOG-IKA.md) — human-readable notes when this skill was bumped for upstream [ika-pre-alpha](https://github.com/dwallet-labs/ika-pre-alpha) `docs/` changes. pre-alpha moves fast; see also [`docs-revision.md`](skills/ika-solana-prealpha/references/docs-revision.md) inside the skill.
+
+source: [github.com/kitty4D/ika-and-encrypt-solana-prealpha-skills](https://github.com/kitty4D/ika-and-encrypt-solana-prealpha-skills) (the ika-only repo [github.com/kitty4D/ika-solana-prealpha-skill](https://github.com/kitty4D/ika-solana-prealpha-skill) is a stub pointer to this bundle)
 
 > *gets ready with a cute little folder stack and way too much sincerity*  
 > e-eh, senpai... d-do you like it when your `SKILL.md` looks **intentional** and not like a yard sale?? ika-chan might be watching from the ink tank uwu <span style="white-space: nowrap;">(&#8288;｡&#8288;>&#8288;ω&#8288;<&#8288;｡&#8288;)</span> b-but no pressure- only a little pressure~ <span style="white-space: nowrap;">🦑&#8288;✨</span>
@@ -62,10 +64,10 @@ Vercel’s [agent skills guide](https://vercel.com/kb/guide/agent-skills-creatin
 
 ```bash
 # explicit path to this skill (works even if the CLI’s repo-wide discovery differs)
-npx skills add https://github.com/kitty4D/ika-solana-prealpha-skill/tree/main/skills/ika-solana-prealpha
+npx skills add https://github.com/kitty4D/ika-and-encrypt-solana-prealpha-skills/tree/main/skills/ika-solana-prealpha
 
 # optional: install from repo + skill name (if your CLI version supports --skill / discovery)
-npx skills add kitty4D/ika-solana-prealpha-skill --skill ika-solana-prealpha
+npx skills add kitty4D/ika-and-encrypt-solana-prealpha-skills --skill ika-solana-prealpha
 ```
 
 add `-g` for a global (user-wide) install when supported. see [skills.sh CLI docs](https://skills.sh/docs/cli) and `npx skills --help` for your version.

@@ -65,4 +65,4 @@ Pre-alpha README: executor handles create_input, graph eval + commit, and decryp
 - **Integration:** `just test-examples` (needs SBF builds).
 - **Harness:** `encrypt-solana-test`, LiteSVM, `MockComputeEngine` — see **testing** chapters in the book.
 
-Examples under `chains/solana/examples/` (voting, counter, ACL, `pc-token`, `pc-swap`, coin-flip) ship **Pinocchio, Native, and Anchor** variants.
+Examples under `chains/solana/examples/` (voting, counter, ACL, `pc-token`, `pc-swap`, coin-flip) ship **Pinocchio, Anchor, Native, and Quasar** variants when present in upstream for each example.

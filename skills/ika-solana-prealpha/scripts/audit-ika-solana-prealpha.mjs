@@ -2,7 +2,7 @@
 /**
  * OS-agnostic audit helper for ika-solana-prealpha skill consumers.
  * From skill folder: node scripts/audit-ika-solana-prealpha.mjs [--force] [--root=DIR]
- * From ika-solana-prealpha-skill repo root: node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs [...]
+ * From skill-package repo root (contains skills/ika-solana-prealpha/): node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs [...]
  *
  * Exit: 0 ok, 2 docs/ drift on main vs tracked commit (unless --force), 1 fatal / network.
  *

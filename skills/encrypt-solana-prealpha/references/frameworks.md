@@ -14,10 +14,11 @@
 | framework | crate | notes |
 | --- | --- | --- |
 | Pinocchio | `encrypt-pinocchio` | `#![no_std]`, CU-focused |
-| Native | `encrypt-native` | `solana-program` |
 | Anchor | `encrypt-anchor` | `anchor-lang` v1 line per upstream examples |
+| Native | `encrypt-native` | `solana-program` |
+| Quasar | `encrypt-quasar` | Quasar-native CPI SDK: `EncryptContext`, `.to_account_view()` for Quasar account types, zero-copy CPI — see [Quasar](https://docs.encrypt.xyz/frameworks/quasar.html) |
 
-All three share the **`#[encrypt_fn]`** DSL (from `encrypt-dsl` / Solana DSL wrappers as documented) and the **`EncryptCpi`** trait pattern described in the [CPI framework chapter](https://docs.encrypt.xyz/on-chain/cpi-framework.html). Per-framework prose: [Pinocchio](https://docs.encrypt.xyz/frameworks/pinocchio.html), [Anchor](https://docs.encrypt.xyz/frameworks/anchor.html), [Native](https://docs.encrypt.xyz/frameworks/native.html) — also listed in [`developer-guide-map.md`](developer-guide-map.md).
+These frameworks share the **`#[encrypt_fn]`** DSL (from `encrypt-dsl` / Solana DSL wrappers as documented) and the **`EncryptCpi`** trait pattern described in the [CPI framework chapter](https://docs.encrypt.xyz/on-chain/cpi-framework.html). Per-framework prose: [Pinocchio](https://docs.encrypt.xyz/frameworks/pinocchio.html), [Anchor](https://docs.encrypt.xyz/frameworks/anchor.html), [Native](https://docs.encrypt.xyz/frameworks/native.html), [Quasar](https://docs.encrypt.xyz/frameworks/quasar.html) — also listed in [`developer-guide-map.md`](developer-guide-map.md).
 
 ---
 

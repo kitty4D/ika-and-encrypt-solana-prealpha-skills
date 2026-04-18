@@ -1,6 +1,6 @@
 ---
 name: ika-solana-prealpha
-description: Use when working with ika dWallet on Solana pre-alpha (devnet, mock signer), gRPC DWalletService SubmitTransaction, BCS SignedRequestData and DWalletRequest, NetworkSignedAttestation, versioned attestations, DWalletSignatureScheme, message_metadata, ApproveMessage, MessageApproval PDAs, CommitDWallet, CommitSignature, DWalletContext CPI (Pinocchio, native, Anchor, Quasar), @ika.xyz/pre-alpha-solana-client, @solana/kit, ika-dwallet-types, chunked dwallet seeds, chains/solana/examples, protocols-e2e, e2e-protocols, or comparing this stack to Sui ika-sdk. Call with audit or audit-force for drift and client dependency checks.
+description: Use when working with ika dWallet on Solana pre-alpha (devnet, mock signer), gRPC DWalletService SubmitTransaction, BCS SignedRequestData and DWalletRequest, NetworkSignedAttestation, versioned attestations, DWalletSignatureScheme, message_metadata, ApproveMessage, MessageApproval PDAs, CommitDWallet, CommitSignature, DWalletContext CPI (Pinocchio, native, Anchor, Quasar), @ika.xyz/pre-alpha-solana-client, @solana/kit, ika-dwallet-types, chunked dwallet seeds, chains/solana/examples, protocols-e2e, e2e-protocols, comparing to Sui ika-sdk, or when docs vs repo drift, PDA/account layout mistakes, gRPC SubmitTransaction or BCS issues, or CPI/DWalletContext integration breaks appear.
 ---
 
 # ika solana pre-alpha
@@ -9,7 +9,7 @@ Normative book: [solana pre-alpha docs](https://solana-pre-alpha.ika.xyz/) — s
 
 **Stale check:** [`references/docs-revision.md`](references/docs-revision.md) — if `docs/` on `main` is past the tracked commit, **tell the user**; do not silently rewrite the bundle.
 
-**Maintainer / integration audit:** `/ika-solana-prealpha audit` (hard stop if skill docs pin is stale) or `/ika-solana-prealpha audit-force` (same checks, but continues after printing a stale warning). Run `node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs` from the **ika-solana-prealpha-skill** repo root, or `node scripts/audit-ika-solana-prealpha.mjs` with cwd set to this skill folder; optional `--root=<path>` for the project to scan (default `process.cwd()`); add `--force` to match audit-force.
+**Maintainer / integration audit:** `/ika-solana-prealpha audit` (hard stop if skill docs pin is stale) or `/ika-solana-prealpha audit-force` (same checks, but continues after printing a stale warning). Run `node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs` from the **skill package** repo root (the repo that contains `skills/ika-solana-prealpha/`), or `node scripts/audit-ika-solana-prealpha.mjs` with cwd set to this skill folder; optional `--root=<path>` for the project to scan (default `process.cwd()`); add `--force` to match audit-force.
 
 ## pre-alpha disclaimer (non-negotiable)
 
@@ -66,7 +66,7 @@ The **program** and **book** use PascalCase instruction names with discriminator
 If this skill is invoked with **`audit`** (e.g. `/ika-solana-prealpha audit`), treat it as a **repo + client integration audit** of the **user’s project** (workspace / `--root`), not a rewrite of this skill.
 
 1. **Gate — skill freshness:** Read [`references/docs-revision.md`](references/docs-revision.md). If `docs/` on `ika-pre-alpha` `main` has changed since the tracked commit (same test as that file: GitHub compare `...main` restricted to `docs/`, or local `git diff <tracked>..origin/main -- docs`), **stop** after reporting: pinned commit, that book sources may be stale, link to compare, and the rule *do not silently rewrite this bundle*. **Do not** run dependency scans or semantic audit on the user repo until this gate passes (or the user uses **audit-force**).
-2. **Deterministic checks:** From the ika-solana-prealpha-skill repo root, run `node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs --root=<user project>` (no `--force`), or the same path relative to the skill directory’s `scripts/` folder. Paste stdout/stderr; honor non-zero exit as **blocked** when the script reports doc drift. That script also compares **locked** `@ika.xyz/pre-alpha-solana-client` and `@solana/kit` versions to npm **`latest`** when it finds a `package-lock.json`, `pnpm-lock.yaml`, or `yarn.lock` (walking up to the monorepo root).
+2. **Deterministic checks:** From the **skill package** repo root (directory containing `skills/ika-solana-prealpha/`), run `node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs --root=<user project>` (no `--force`), or the same path relative to the skill directory’s `scripts/` folder. Paste stdout/stderr; honor non-zero exit as **blocked** when the script reports doc drift. That script also compares **locked** `@ika.xyz/pre-alpha-solana-client` and `@solana/kit` versions to npm **`latest`** when it finds a `package-lock.json`, `pnpm-lock.yaml`, or `yarn.lock` (walking up to the monorepo root).
 3. **Semantic checklist (user code):** With [`flows.md`](references/flows.md), [`grpc-api.md`](references/grpc-api.md), and [`account-layouts.md`](references/account-layouts.md), trace **`Sign` / `SubmitTransaction`**, **`ApproveMessage` / CPI**, **MessageApproval** reads, and **flow 6** verification; cite **file:line**. Note gaps; do not invent upstream APIs.
 
 ## Audit-force mode
@@ -82,7 +82,7 @@ If invoked with **`audit-force`** (e.g. `/ika-solana-prealpha audit-force`), per
 | --- | --- |
 | Wrong **MessageApproval** or **DWallet** PDAs | [`account-layouts.md`](references/account-layouts.md): MessageApproval seeds include **`scheme_u16_le`**, **`message_digest`**, optional **`message_metadata_digest`**; DWallet chunks use **curve u16 LE ‖ pubkey**. |
 | Verify from PDA **`message_digest`** only | Use **`DWalletSignatureScheme`** + **`message` / `message_metadata`** like the validator — [`flows.md`](references/flows.md) flow 6, [`grpc-api.md`](references/grpc-api.md). |
-| **gRPC** trust | Mock **`Sign`** often **`Error`**; HTTP **200** can still wrap **`TransactionResponseData::Error`** — deserialize — [`grpc-api.md`](references/grpc-api.md). |
+| **gRPC** trust | HTTP **200** can still wrap **`TransactionResponseData::Error`**; **`Sign` succeeds only with valid on-chain approval state and inputs** — always deserialize `response_data` — [`grpc-api.md`](references/grpc-api.md). |
 | **`docs/`** moved upstream | [`docs-revision.md`](references/docs-revision.md): tell the user; do not silently patch this bundle. |
 
 **vs Sui `ika-sdk`:** Sui uses PTB + `IkaClient`, objects, effects certs; Solana pre-alpha uses Solana txs + gRPC **`SubmitTransaction`**, PDAs, **`ApprovalProof::Solana`**. BCS and lifecycles: [`grpc-api.md`](references/grpc-api.md), [`flows.md`](references/flows.md).

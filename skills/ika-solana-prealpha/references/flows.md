@@ -7,7 +7,7 @@
 3. Flow 3 - CPI approve_message
 4. Flow 4 - presign allocation
 5. Flow 5 - authority transfer
-6. Flow 6 - signature verification (PDA `message_hash` vs signed digest)
+6. Flow 6 - signature verification (PDA `message_digest` vs signed digest)
 7. Flow 7 - voting e2e
 8. Flow 8 - multisig e2e
 
@@ -44,14 +44,14 @@ let (dwallet_pda, _bump) = Pubkey::find_program_address(&seeds, &dwallet_program
 
 **Outcome:** `MessageApproval` filled; signature from gRPC and/or on-chain when the signing environment supports **`Sign`**.
 
-1. Compute `message_hash` per [`../SKILL.md`](../SKILL.md) and [`instructions.md`](instructions.md) (`approve_message`).
-2. Derive MessageApproval PDA: `["message_approval", dwallet, message_hash]`.
+1. Compute **`message_digest`** (**keccak256(message)**) and optional **`message_metadata_digest`** per [`../SKILL.md`](../SKILL.md) and [`instructions.md`](instructions.md) (`approve_message`).
+2. Derive **MessageApproval** PDA: **`["dwallet", …chunks…, "message_approval", scheme_u16_le, message_digest, [message_metadata_digest if non-zero]]`** — full layout in [`account-layouts.md`](account-layouts.md) (not a legacy `["message_approval", dwallet, message_hash]` triple).
 3. Submit **approve_message** (disc 8, direct signer metas): [`instructions.md`](instructions.md). The on-chain account records **`DWalletSignatureScheme`** (and related fields) for validators to read.
 4. Record `transaction_signature` and `slot` from the confirmed Solana transaction.
 5. Keep the **DKG (or import) response** as **`NetworkSignedAttestation`** — you need **`dwallet_attestation`** on `Sign` (proves dWallet state).
 6. Allocate **presign** if required: [`grpc-api.md`](grpc-api.md) `Presign` / `PresignForDWallet`; parse **`Attestation`** → **`VersionedPresignDataAttestation`** and persist **`presign_session_identifier`** (and presign material).
 7. Build `DWalletRequest::Sign` with **`approval_proof: ApprovalProof::Solana { transaction_signature, slot }`**, **`dwallet_attestation`**, **`presign_session_identifier`**, **`message`**, **`message_centralized_signature`**, and BCS **`message_metadata`** when the scheme requires it (e.g. **`EcdsaBlake2b256`**, **`SchnorrkelMerlin`**). Validators derive **`DWalletSignatureScheme`** from **on-chain `MessageApproval`**, not from extra fields on `Sign`.
-8. Handle `TransactionResponseData::Signature` or **`::Error`**. **Pre-alpha mock:** `Sign` / `ImportedKeySign` typically return **`Error`** because the mock does not index Solana for `MessageApproval` — use **devnet / full stack** (or project e2e) for a successful gRPC signature.
+8. Handle `TransactionResponseData::Signature` or **`::Error`**. **`Sign` / `ImportedKeySign`** are **supported** in pre-alpha mock when **`MessageApproval` exists on-chain**, **`ApprovalProof::Solana`** matches the approving tx, and the rest of the request validates — you still need **devnet / LiteSVM / e2e** (or **`protocols-e2e`**) where that chain state is real for your test. **HTTP 200** can still carry **`::Error`**; deserialize `response_data` ([`grpc-api.md`](grpc-api.md)).
 9. Confirm completion via `MessageApproval` offsets ([`account-layouts.md`](account-layouts.md)) or **`SignatureCommitted`** ([`events.md`](events.md)).
 
 gRPC may return a signature before or in parallel with on-chain `commit_signature`; clients should tolerate ordering variance.
@@ -66,7 +66,7 @@ gRPC may return a signature before or in parallel with on-chain `commit_signatur
 2. **`transfer_ownership`** (disc 24) to `cpi_authority` while still current authority.
 3. Construct **`DWalletContext`** ([`frameworks.md`](frameworks.md)).
 4. CPI **approve_message** with six-account layout ([`instructions.md`](instructions.md)).
-5. Off-chain: gRPC `Sign` with `ApprovalProof::Solana` for that CPI transaction (same **`Sign`** shape and mock caveat as flow 2).
+5. Off-chain: gRPC `Sign` with `ApprovalProof::Solana` for that CPI transaction (same **`Sign`** shape and **on-chain `MessageApproval` / proof** requirements as flow 2).
 6. Observe completion as in flow 2 step 9.
 
 **Testing:** Mollusk does not exercise cross-program CPI to the dWallet program; use LiteSVM or devnet e2e for CPI coverage.
@@ -92,7 +92,7 @@ gRPC may return a signature before or in parallel with on-chain `commit_signatur
 
 ## flow 6 - signature verification (off-chain)
 
-Verify using the **same construction the network used** for the completed signature — keyed off **`DWalletSignatureScheme`** read from **on-chain `MessageApproval`** (and your `message` / `message_metadata`), not the PDA seed **`message_hash`** (that value remains **`keccak256(preimage)`** as an on-chain uniqueness key).
+Verify using the **same construction the network used** for the completed signature — keyed off **`DWalletSignatureScheme`** read from **on-chain `MessageApproval`** (and your `message` / `message_metadata`), not the PDA seed **`message_digest`** alone (that digest remains **`keccak256(message)`** as an on-chain uniqueness key).
 
 **`EddsaSha512` (Curve25519 / Ed25519)**
 
@@ -108,7 +108,7 @@ verifying_key.verify_strict(&message_preimage, &signature)?;
 
 **ECDSA / Taproot / BLAKE2b / Schnorrkel schemes on `DWalletSignatureScheme`**
 
-Build the **digest or input** that matches the variant (**`EcdsaKeccak256`**, **`EcdsaSha256`**, **`EcdsaDoubleSha256`**, **`TaprootSha256`**, **`EcdsaBlake2b256`** with **`Blake2bMessageMetadata`**, **`SchnorrkelMerlin`** with **`SchnorrkelMessageMetadata`**) — mirror upstream crypto docs and the same bytes the validator used. Then verify per algorithm — **do not** assume PDA `message_hash` equals the signed digest unless your app defined it that way.
+Build the **digest or input** that matches the variant (**`EcdsaKeccak256`**, **`EcdsaSha256`**, **`EcdsaDoubleSha256`**, **`TaprootSha256`**, **`EcdsaBlake2b256`** with **`Blake2bMessageMetadata`**, **`SchnorrkelMerlin`** with **`SchnorrkelMessageMetadata`**) — mirror upstream crypto docs and the same bytes the validator used. Then verify per algorithm — **do not** assume PDA **`message_digest`** equals the signed digest unless your app defined it that way.
 
 ```rust
 use secp256k1::{Message, PublicKey, Secp256k1, ecdsa::Signature};

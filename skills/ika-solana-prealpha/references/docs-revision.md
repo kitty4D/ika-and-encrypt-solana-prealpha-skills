@@ -6,10 +6,10 @@ Published book: [solana pre-alpha docs](https://solana-pre-alpha.ika.xyz/) is bu
 
 | field | value |
 | --- | --- |
-| commit (full) | `bbef8cf12bf12fe0bdefb58194d26b3985336508` |
-| commit (short) | `bbef8cf` |
-| upstream commit date (UTC) | 2026-04-15 |
-| recorded in skill | 2026-04-15 |
+| commit (full) | `3bd7945e012950e54fb4d0057b72a7d466556fc1` |
+| commit (short) | `3bd7945` |
+| upstream commit date (UTC) | 2026-04-17 |
+| recorded in skill | 2026-04-17 |
 
 **`docs/` and this commit:** Git does not assign a separate commit to the `docs/` folder. The SHA above is a **normal repository commit**; it pins **every path in the tree at that instant**, including all of **`docs/`**. Stale checks that filter to `docs/` (below) ask whether **book sources on `main`** changed since that commit—not whether you need a second stored hash.
 

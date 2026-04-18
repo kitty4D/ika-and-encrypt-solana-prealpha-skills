@@ -2,7 +2,7 @@
 /**
  * OS-agnostic audit helper for encrypt-solana-prealpha skill consumers.
  * From skill folder: node scripts/audit-encrypt-solana-prealpha.mjs [--force] [--root=DIR]
- * From encrypt-solana-prealpha-skill repo root: node skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs [...]
+ * From skill-package repo root (contains skills/encrypt-solana-prealpha/): node skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs [...]
  *
  * Exit: 0 ok, 2 docs/ drift on main vs tracked commit (unless --force), 1 fatal / network.
  *

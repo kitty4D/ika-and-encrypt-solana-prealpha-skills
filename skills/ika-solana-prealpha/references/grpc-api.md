@@ -136,17 +136,27 @@ Exact fields: **`ika-dwallet-types`** (and upstream book **Request types** chapt
 
 ### Mock support (pre-alpha)
 
-Upstream documents separate **wire** support vs **mock** behavior. Notably, **`Sign` and `ImportedKeySign` require validators to read on-chain `MessageApproval`** to learn **`DWalletSignatureScheme`**; the **mock signer does not perform that lookup**, so **`SubmitTransaction` for `Sign` / `ImportedKeySign` returns `TransactionResponseData::Error`** in the mock environment. Use **real network / devnet flows** (or e2e tests that hit a validator that indexes Solana) for successful gRPC signing.
+**Normative summary** (matches upstream **Mock Support** table in [`docs/src/grpc/request-types.md`](https://github.com/dwallet-labs/ika-pre-alpha/blob/main/docs/src/grpc/request-types.md) at [`docs-revision.md`](docs-revision.md)): pre-alpha uses a **single mock signer**, not distributed MPC — the book disclaimer stresses **no real MPC security** despite broad coverage. **All request variants below are implemented** and exercised end-to-end in upstream **`protocols-e2e`** / **`e2e-protocols`**.
 
-| variant | mock (typical) |
-| --- | --- |
-| `DKG { ... }` | Supported (four curves; encrypted vs public `UserSecretKeyShare`; optional `sign_during_dkg_request`) |
-| `Sign { ... }` | **Error** (needs on-chain `MessageApproval` lookup) |
-| `ImportedKeySign { ... }` | **Error** (same) |
-| `Presign { ... }` | Supported |
-| `PresignForDWallet { ... }` | Supported |
-| `ImportedKeyVerification { ... }` | Supported |
-| `ReEncryptShare`, `MakeSharePublic`, `FutureSign`, `SignWithPartialUserSig`, `ImportedKeySignWithPartialUserSig` | Wire defined; mock **not implemented** → error |
+**`Sign` / `ImportedKeySign`:** validators read **`signature_scheme`** from **on-chain `MessageApproval`** (and curve from **`dwallet_attestation`**). You still need a **confirmed** `approve_message` (or CPI equivalent), correct **`ApprovalProof::Solana`**, and RPC access to **Solana** state the validators use — local misconfig or bad inputs yield **`TransactionResponseData::Error`** like any other validation failure.
+
+**HTTP vs body:** **`SubmitTransaction`** may return HTTP **200** with BCS **`TransactionResponseData::Error`** — always deserialize `response_data`.
+
+| Request | Status | Notes (condensed from upstream) |
+| --- | --- | --- |
+| `DKG` | Supported | Four curves; encrypted or public `UserSecretKeyShare`; optional `sign_during_dkg_request`; Ristretto uses real Schnorrkel keypairs in the mock path. |
+| `Sign` | Supported | Seven `DWalletSignatureScheme` variants; `hash_scheme` / cross-chain digests per book; reads scheme from **`MessageApproval`**. |
+| `ImportedKeySign` | Supported | Same as `Sign` for imported-key dWallets. |
+| `Presign` | Supported | Attestation with presign data; **`signature_algorithm`**, not combined scheme. |
+| `PresignForDWallet` | Supported | Bound presign; **`dwallet_public_key`** (not legacy `dwallet_id`). |
+| `ImportedKeyVerification` | Supported | Imported-key dWallet creation. |
+| `ReEncryptShare` | Supported | Returns **`VersionedEncryptedUserKeyShareAttestation`**. |
+| `MakeSharePublic` | Supported | Returns **`VersionedPublicUserKeyShareAttestation`**. |
+| `FutureSign` | Supported | Step 1 of conditional signing; partial user sig attestation. |
+| `SignWithPartialUserSig` | Supported | Step 2; completes **`FutureSign`**. |
+| `ImportedKeySignWithPartialUserSig` | Supported | Imported-key variant of step 2. |
+
+**Note:** Some **per-variant** subsections in the same upstream chapter may still contain older phrasing (for example “not yet implemented in mock”). For this skill bundle, treat the **Mock Support** table at the revision recorded in [`docs-revision.md`](docs-revision.md) as authoritative. When upstream reconciles those subsections, bump the pin and refresh this file.
 
 ### DKG (representative)
 
@@ -234,11 +244,11 @@ pub enum TransactionResponseData {
 
 | variant | use |
 | --- | --- |
-| `Signature` | Completed signing (`Sign`, `ImportedKeySign`, partial-user-sig completion variants, when implemented) |
-| `Attestation` | DKG, imported-key verification, **presign**, future re-encrypt / make-public / `FutureSign`, etc. |
-| `Error` | Validation or mock limitation; **deserialize before treating HTTP as success** |
+| `Signature` | Completed signing (`Sign`, `ImportedKeySign`, `SignWithPartialUserSig`, `ImportedKeySignWithPartialUserSig`, …) |
+| `Attestation` | DKG, imported-key verification, **presign**, `ReEncryptShare` / `MakeSharePublic` / `FutureSign`, etc. |
+| `Error` | Validation failure, missing or mismatched on-chain state, bad proofs, or other server-side errors — **deserialize before treating HTTP as success** |
 
-**On-chain vs signing digest:** `MessageApproval` PDA seed **`message_hash`** remains **`keccak256(preimage)`** as an on-chain uniqueness key. The bytes the network signs follow **`DWalletSignatureScheme`** / metadata — not necessarily equal to that PDA key. See [`flows.md`](flows.md) flow 6 and [`../SKILL.md`](../SKILL.md).
+**On-chain vs signing digest:** `MessageApproval` PDA seed **`message_digest`** (**keccak256(message)**) is an on-chain uniqueness key. The bytes the network signs follow **`DWalletSignatureScheme`** / metadata — not necessarily equal to that seed alone. See [`flows.md`](flows.md) flow 6 and [`../SKILL.md`](../SKILL.md).
 
 ---
 
