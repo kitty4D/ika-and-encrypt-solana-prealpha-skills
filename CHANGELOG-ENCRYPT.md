@@ -16,6 +16,10 @@
 
 - **kept: `vector.is_equal(&scalar_input)` silently returns all-false** - no upstream contradiction found.
 
+- **fixed: "ReadCiphertext response has a type prefix"** - wrong. the proto now returns a structured `ReadCiphertextResponse` with separate `value` (raw bytes), `fhe_type` (uint32), and `digest` (bytes) fields. `value` has no fhe_type byte prepended - "skip the first byte" was incorrect and would mis-parse the result. corrected with working TypeScript + Rust examples.
+
+- **fixed: "Account ordering for execute_graph CPI"** - wrong on two counts: (1) the fixed account count is 8, not 9 - no `system_program` in the execute_graph fixed set; (2) the order is completely different: `config, deposit, caller_program, cpi_authority, nk, payer, event_authority, encrypt_program` (encrypt_program is last, not first as the old gotcha stated). confirmed from pinocchio SDK `cpi.rs`.
+
 ### no docs-revision.md change
 
 upstream `main` is still at `f779af5` - this is a skill correction based on inspecting the pinned source code, not a new upstream `docs/` commit.

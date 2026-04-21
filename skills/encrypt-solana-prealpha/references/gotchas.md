@@ -74,9 +74,29 @@ With 36+ accounts (9 Encrypt CPI context + inputs + outputs + program accounts),
 
 You must poll the status byte before reading outputs.
 
-### ReadCiphertext response has a type prefix
+### ReadCiphertext returns a structured response, not a raw byte blob
 
-gRPC `ReadCiphertext` returns `[fhe_type_byte][raw_value_bytes]`. For vectors: byte 0 = `0x24` (type 36), bytes 1..8193 = 512 x 16-byte u128 LE values. For scalars: byte 0 = type code, bytes 1..17 = value. Skip the first byte when parsing.
+The gRPC `ReadCiphertextResponse` has three distinct fields — `value`, `fhe_type`, and `digest`. **Do not skip the first byte.** `value` is already the raw plaintext bytes with no type prefix prepended.
+
+```typescript
+// TypeScript
+const result = await client.readCiphertext(params);
+// result.value    → Buffer of raw plaintext bytes (no prefix)
+// result.fheType  → number (e.g., 36 for EVectorU128)
+// result.digest   → Buffer (32-byte on-chain digest)
+const elem0 = result.value.readUInt32LE(0); // direct — no [0] skip
+```
+
+```rust
+// Rust
+let result = client.read_ciphertext(&ct, &[], epoch, &signer).await?;
+// result.value     → Vec<u8> of raw plaintext bytes
+// result.fhe_type  → FheType enum
+// result.digest    → [u8; 32]
+let elem0 = u32::from_le_bytes(result.value[0..4].try_into().unwrap());
+```
+
+For the on-chain `DecryptionRequest` path (when using `request_decryption` + polling), plaintext data starts at account byte offset 107 — also no type prefix within that slice.
 
 ### Ciphertext account on-chain layout (100 bytes)
 
@@ -97,26 +117,25 @@ Actual encrypted data is stored off-chain by the executor — the on-chain accou
 
 ### Account ordering for `execute_graph` CPI
 
-`EncryptContext` requires exactly 9 accounts in fixed order, followed by graph inputs and outputs:
+`EncryptContext` requires exactly **8** fixed accounts (not 9), followed by input then output ciphertext accounts. **encrypt_program is last, not first. There is no system_program in this set.**
 
 ```
-[0]:  encrypt_program       (readonly)
-[1]:  config                (writable)  — PDA ["encrypt_config"]
-[2]:  deposit               (writable)  — PDA ["encrypt_deposit", payer]
+[0]:  config                (writable)  — PDA ["encrypt_config"]
+[1]:  deposit               (writable)  — PDA ["encrypt_deposit", payer]
+[2]:  caller_program        (readonly)  — YOUR on-chain program ID
 [3]:  cpi_authority         (readonly, PDA signer) — PDA ["__encrypt_cpi_authority"] from YOUR program
-[4]:  caller_program        (readonly)  — YOUR program ID
-[5]:  network_encryption_key (readonly) — PDA ["network_encryption_key", key_bytes]
-[6]:  payer                 (writable, signer)
-[7]:  event_authority       (readonly)  — PDA ["__event_authority"]
-[8]:  system_program        (readonly)
+[4]:  network_encryption_key (readonly) — PDA ["network_encryption_key", key_bytes]
+[5]:  payer                 (writable, signer)
+[6]:  event_authority       (readonly)  — PDA ["__event_authority"]
+[7]:  encrypt_program       (readonly)
 
-[9..9+N]:     input ciphertext accounts
-[9+N..9+N+M]: output ciphertext accounts
+[8..8+N]:     input ciphertext accounts  (readonly)
+[8+N..8+N+M]: output ciphertext accounts (writable)
 ```
 
 Instruction data: `[opcode=4, graph_len_u16_le, graph_bytes, num_inputs_u8]`
 
-Misordering causes silent CPI failures or wrong account usage.
+Use the framework SDK (`EncryptContext::execute_graph()`) rather than constructing this manually — it manages the fixed account list. Misordering causes silent CPI failures or wrong account usage.
 
 ### Mock network encryption key
 
