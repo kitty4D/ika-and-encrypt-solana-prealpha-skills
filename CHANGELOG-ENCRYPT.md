@@ -1,5 +1,27 @@
 # changelog - `encrypt-solana-prealpha` skill
 
+## 2026-04-21 - correct stale vector gotchas (no upstream pin change, same `f779af5`)
+
+### what changed
+
+**`skills/encrypt-solana-prealpha/references/gotchas.md`** - removed two now-wrong vector gotchas and corrected a third:
+
+- **removed: "vector ciphertext data loss"** - the `MockEncryptor` slot-0-only truncation bug was fixed in upstream commit `"Add vector support"` (2026-04-15, before our current pin). `mock_crypto.rs` now uses `fhe_type.byte_width()` so all vector slots round-trip correctly. the official `chains/solana/examples/vector-ops` e2e tests confirm elements at indices 1+ work.
+
+- **removed: `#[encrypt_fn]` + `HasFheTypeId` workaround** - vectors work with `#[encrypt_fn]` directly as of the same 2026-04-15 fix. the "fall back to `#[encrypt_fn_graph]`" advice was obsolete. replaced with a positive note that `#[encrypt_fn_graph]` is only needed if you want raw bytecode without the Solana CPI wrapper.
+
+- **updated: "no vector reduction operations"** - still accurate (no `.sum()` / `.any()` / `.max()`), but added `.get()` as a partial single-element workaround; clarified that the result is still a vector type, not a scalar.
+
+- **kept: "vector graph outputs when chained"** - the e2e example always uses fresh `createInput` inputs, so chained graph → graph vector behavior is unverified at this pin. may also be fixed by the same `byte_width` commit, but not confirmed.
+
+- **kept: `vector.is_equal(&scalar_input)` silently returns all-false** - no upstream contradiction found.
+
+### no docs-revision.md change
+
+upstream `main` is still at `f779af5` - this is a skill correction based on inspecting the pinned source code, not a new upstream `docs/` commit.
+
+---
+
 ## 2026-04-17 - align with encrypt-pre-alpha `main` @ `f779af5`
 
 ### what upstream did (the short version)

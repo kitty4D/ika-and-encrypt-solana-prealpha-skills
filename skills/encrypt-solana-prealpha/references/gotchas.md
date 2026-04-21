@@ -8,27 +8,23 @@ See also: [`performance-caveats.md`](performance-caveats.md) for timing and REFH
 
 ## Executor Bugs (pre-alpha)
 
-### Vector ciphertext data loss
+### Vector graph outputs when chained (status uncertain)
 
-`createInput` gRPC only preserves slot 0 of vector ciphertexts. Slots 1–511 return zeros on `ReadCiphertext`. Root cause: the public `MockEncryptor` in `encrypt-compute` truncates to 16 bytes (`crates/encrypt-compute/src/mock_crypto.rs`).
+When a vector ciphertext produced by one `execute_graph` CPI call is used as an input to a *second* graph, the second graph's vector output may return zeros from `ReadCiphertext` even though the executor commits a non-zero digest (status = 1).
 
-Scalar `createInput` → `ReadCiphertext` works correctly. Vector slot 0 works. Slots 1+ return zeros.
+**As of the `f779af5` pin (2026-04-17):** graphs where all inputs come from fresh `createInput` calls are verified working — the official `chains/solana/examples/vector-ops` e2e tests confirm multi-element vectors round-trip correctly in that case. Whether chained graph → graph vector inputs are also now fixed is not covered by the published examples, so assume this limitation may still apply until you field-test it.
 
-### Vector graph outputs from CPI return zeros
-
-`execute_graph` via CPI produces correct scalar outputs but zero-value vector outputs. The executor commits a non-zero digest (status = 1), but `ReadCiphertext` returns 8192 bytes of zeros.
-
-Exception: graphs where **all** inputs come from `createInput` (not from a previous graph's output) return vectors correctly. The failure occurs when vector inputs are outputs of a prior graph execution.
+**Root cause (historic):** `MockEncryptor` was truncating all ciphertext data to 16 bytes regardless of FHE type, so vector digests were computed on zeros-padded data. This was fixed in the "Add vector support" commit (2026-04-15). The same fix likely resolved the chained case, but there is no e2e test to confirm.
 
 ---
 
 ## DSL & Macro
 
-### `#[encrypt_fn]` and vector types (book vs toolchain)
+### `#[encrypt_fn]` works with vector types directly
 
-**Book:** [Vectors](https://docs.encrypt.xyz/dsl/vectors.html) documents element-wise **`#[encrypt_fn]`** with `EUint*Vector` types (see in-repo [`dsl-vectors.md`](dsl-vectors.md)).
+As of the "Add vector support" commit (2026-04-15, before the `f779af5` pin), `#[encrypt_fn]` handles `EUint*Vector` types natively — no fallback to `#[encrypt_fn_graph]` needed. Earlier builds had a `HasFheTypeId` trait wiring gap for vector types; that is resolved. See [`dsl-vectors.md`](dsl-vectors.md) for full usage examples.
 
-**Field-tested:** If **`encrypt-solana-dsl`**’s `#[encrypt_fn]` still errors on **`HasFheTypeId`** for older `EVector*`/`EUint*Vector` wiring, or you need graph-only bytecode without the Solana CPI wrapper, use **`#[encrypt_fn_graph]`** (from base `encrypt-dsl`) and invoke via `EncryptContext::execute_graph()` manually.
+Use `#[encrypt_fn_graph]` only if you need the raw graph bytecode *without* the Solana CPI wrapper (e.g., for testing with `EncryptContext::execute_graph()` directly). It is not a workaround for vector type support anymore.
 
 ### `vector.is_equal(&scalar_input)` silently returns all-false
 
@@ -156,4 +152,8 @@ let result = numerator / safe_denom;
 
 ### No vector reduction operations
 
-`.sum()`, `.any()`, `.max()` do not exist in the SDK. You cannot extract a scalar from a vector in a single graph. If you need a scalar derived from a vector result, decrypt the vector first, then feed the scalar back as a new input.
+`.sum()`, `.any()`, `.max()` do not exist in the SDK — no operation collapses a full vector to a scalar in a single graph (confirmed on the roadmap in [`dsl-vectors.md`](dsl-vectors.md)).
+
+**Partial workaround — single element:** use `.get(&index_vec)` to extract one element; the result is a vector where position 0 holds the value and the rest are zero. That is still a vector type, not a scalar — if you need a scalar `EUint*`, you have to decrypt the output and re-create a scalar input via gRPC.
+
+If you need a true scalar derived from a full vector aggregation, the only path today is: decrypt the vector, compute the reduction client-side, feed the result back as a new scalar `createInput`.
