@@ -1,6 +1,6 @@
 ---
 name: encrypt-solana-prealpha
-description: Use when integrating Encrypt on Solana pre-alpha (devnet)—FHE DSL (`#[encrypt_fn]`, graphs, ciphertexts), Encrypt gRPC (`CreateInput`, `ReadCiphertext`), on-chain `execute_graph` / fees / events, `@encrypt.xyz/pre-alpha-solana-client`, or disambiguating Encrypt vs ika dWallet signing. Symptoms include book vs `encrypt-pre-alpha` `docs/` drift, NEK or `authorized` wiring mistakes, vector vs scalar graph paths, and mock executor / BPF / ciphertext lifecycle surprises.
+description: Use when integrating Encrypt on Solana pre-alpha (devnet)—FHE DSL (`#[encrypt_fn]`, graphs, ciphertexts), Encrypt gRPC (`CreateInput`, `ReadCiphertext`), on-chain `execute_graph` / fees / events, `@encrypt.xyz/pre-alpha-solana-client`, or disambiguating Encrypt vs ika dWallet signing. Symptoms include book vs `encrypt-pre-alpha` `docs/` drift, NEK or `authorized` wiring mistakes, vector vs scalar graph paths, and mock executor / BPF / ciphertext lifecycle surprises. Also covers `/encrypt-solana-prealpha audit` / `audit-force` / `audit-fix <rule-id>` — script-driven integration audit + skill-vs-codebase drift findings with ready-to-paste fix prompts.
 ---
 
 # encrypt solana pre-alpha
@@ -16,6 +16,12 @@ Normative: [Encrypt Developer Guide](https://docs.encrypt.xyz/) · mdbook in [`e
 - **Keys / trust model not final**; **devnet resets**; **no warranty**. Do not market as production FHE or private custody to end users.
 - **Not for** ika dWallet signing (`approve_message`, `DWalletService` SubmitTransaction, MessageApproval PDAs) — use **`ika-solana-prealpha`**.
 
+## When NOT to use
+
+- **ika dWallet signing** (`ApproveMessage`, `DWalletService` `SubmitTransaction`, `MessageApproval` PDAs, `DWalletContext` CPI) — route to **`ika-solana-prealpha`**. This skill is Encrypt (FHE on Solana), not ika signing.
+- **Production FHE / private custody** — pre-alpha runs **no real FHE** (ciphertexts can be plaintext on-chain); redirect to mainnet Encrypt once it exists. Do not ship this as confidential-data infra.
+- **Sui-side FHE / non-Solana chains** — this skill is the `chains/solana` surface of `encrypt-pre-alpha`. Other chains are out of scope.
+
 ## references (load on demand)
 
 | file | load for |
@@ -24,7 +30,7 @@ Normative: [Encrypt Developer Guide](https://docs.encrypt.xyz/) · mdbook in [`e
 | [`references/book-snapshots.md`](references/book-snapshots.md) | Lists all book-copy md under `references/` |
 | [`references/fee-and-state-reference.md`](references/fee-and-state-reference.md) | ENC/SOL fees, seven account kinds, five event types |
 | [`references/docs-revision.md`](references/docs-revision.md) | `docs/` vs `main` |
-| [`references/audit.md`](references/audit.md) | **`audit` / `audit-force`**, drift script, semantic checklist |
+| [`references/audit.md`](references/audit.md) | **`audit` / `audit-force` / `audit-fix`**, drift catalog ([`references/drift-rules.mjs`](references/drift-rules.mjs)), `--no-drift`, `--drift=strict`, `.skill-audit.json`, checklist |
 | [`references/grpc-api.md`](references/grpc-api.md) | `EncryptService`, proto, clients |
 | [`references/instructions.md`](references/instructions.md) | Discriminators, ix groups |
 | [`references/frameworks.md`](references/frameworks.md) | Crates, `EncryptCpi`, toolchain |

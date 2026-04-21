@@ -13,3 +13,9 @@ desktop.ini
 _upstream_docs/
 .env
 .env.*
+
+# claude code local data (plans, session cache, etc.)
+.claude/
+
+# audit script runtime state file - per-user, per-machine, not for committing
+.skill-audit.json

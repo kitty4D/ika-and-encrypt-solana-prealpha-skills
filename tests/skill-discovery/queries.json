@@ -1,0 +1,65 @@
+{
+  "_description": "For each realistic user query, which skill should win based on description keyword overlap. Used by cso.test.mjs to check that descriptions contain the triggering keywords a human would realistically type.",
+  "queries": [
+    {
+      "query": "ika dWallet Sign returns Error in mock",
+      "expected": "ika-solana-prealpha",
+      "keywords": ["ika", "dWallet", "Sign", "mock"]
+    },
+    {
+      "query": "how do I approve a message for MessageApproval PDA on Solana devnet",
+      "expected": "ika-solana-prealpha",
+      "keywords": ["ApproveMessage", "MessageApproval", "PDA"]
+    },
+    {
+      "query": "gRPC SubmitTransaction DWalletService BCS types",
+      "expected": "ika-solana-prealpha",
+      "keywords": ["gRPC", "DWalletService", "SubmitTransaction", "BCS"]
+    },
+    {
+      "query": "CommitDWallet CommitSignature DWalletContext CPI",
+      "expected": "ika-solana-prealpha",
+      "keywords": ["CommitDWallet", "CommitSignature", "DWalletContext"]
+    },
+    {
+      "query": "import @ika.xyz/pre-alpha-solana-client with @solana/kit",
+      "expected": "ika-solana-prealpha",
+      "keywords": ["@ika.xyz/pre-alpha-solana-client", "@solana/kit"]
+    },
+    {
+      "query": "ika dWallet skill audit-fix rule",
+      "expected": "ika-solana-prealpha",
+      "keywords": ["ika", "dWallet", "audit-fix"]
+    },
+    {
+      "query": "Encrypt FHE execute_graph and ReadCiphertext on Solana pre-alpha",
+      "expected": "encrypt-solana-prealpha",
+      "keywords": ["FHE", "execute_graph", "ReadCiphertext"]
+    },
+    {
+      "query": "encrypt_fn vs encrypt_fn_graph for vectors",
+      "expected": "encrypt-solana-prealpha",
+      "keywords": ["encrypt_fn", "graphs", "ciphertexts"]
+    },
+    {
+      "query": "NEK authorized wiring CreateInput Encrypt gRPC",
+      "expected": "encrypt-solana-prealpha",
+      "keywords": ["NEK", "authorized", "CreateInput"]
+    },
+    {
+      "query": "@encrypt.xyz/pre-alpha-solana-client install for devnet",
+      "expected": "encrypt-solana-prealpha",
+      "keywords": ["@encrypt.xyz/pre-alpha-solana-client"]
+    },
+    {
+      "query": "I'm using Encrypt FHE, not ika dWallet — need disambiguation",
+      "expected": "encrypt-solana-prealpha",
+      "keywords": ["Encrypt", "FHE", "disambiguating"]
+    },
+    {
+      "query": "encrypt FHE skill audit-fix rule",
+      "expected": "encrypt-solana-prealpha",
+      "keywords": ["Encrypt", "FHE", "audit-fix"]
+    }
+  ]
+}

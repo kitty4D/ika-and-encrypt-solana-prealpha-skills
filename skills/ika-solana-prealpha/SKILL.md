@@ -1,6 +1,6 @@
 ---
 name: ika-solana-prealpha
-description: Use when working with ika dWallet on Solana pre-alpha (devnet, mock signer), gRPC DWalletService SubmitTransaction, BCS SignedRequestData and DWalletRequest, NetworkSignedAttestation, versioned attestations, DWalletSignatureScheme, message_metadata, ApproveMessage, MessageApproval PDAs, CommitDWallet, CommitSignature, DWalletContext CPI (Pinocchio, native, Anchor, Quasar), @ika.xyz/pre-alpha-solana-client, @solana/kit, ika-dwallet-types, chunked dwallet seeds, chains/solana/examples, protocols-e2e, e2e-protocols, comparing to Sui ika-sdk, or when docs vs repo drift, PDA/account layout mistakes, gRPC SubmitTransaction or BCS issues, or CPI/DWalletContext integration breaks appear.
+description: Use when working with ika dWallet on Solana pre-alpha (devnet, mock signer), gRPC DWalletService SubmitTransaction, BCS SignedRequestData and DWalletRequest, NetworkSignedAttestation, versioned attestations, DWalletSignatureScheme, message_metadata, ApproveMessage, MessageApproval PDAs, CommitDWallet, CommitSignature, DWalletContext CPI (Pinocchio, native, Anchor, Quasar), @ika.xyz/pre-alpha-solana-client, @solana/kit, ika-dwallet-types, chunked dwallet seeds, chains/solana/examples, protocols-e2e, e2e-protocols, comparing to Sui ika-sdk, or when docs vs repo drift, PDA/account layout mistakes, gRPC SubmitTransaction or BCS issues, or CPI/DWalletContext integration breaks appear. Also covers `/ika-solana-prealpha audit` / `audit-force` / `audit-fix <rule-id>` — script-driven integration audit + skill-vs-codebase drift findings with ready-to-paste fix prompts.
 ---
 
 # ika solana pre-alpha
@@ -9,7 +9,7 @@ Normative book: [solana pre-alpha docs](https://solana-pre-alpha.ika.xyz/) — s
 
 **Stale check:** [`references/docs-revision.md`](references/docs-revision.md) — if `docs/` on `main` is past the tracked commit, **tell the user**; do not silently rewrite the bundle.
 
-**Maintainer / integration audit:** `/ika-solana-prealpha audit` (hard stop if skill docs pin is stale) or `/ika-solana-prealpha audit-force` (same checks, but continues after printing a stale warning). Run `node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs` from the **skill package** repo root (the repo that contains `skills/ika-solana-prealpha/`), or `node scripts/audit-ika-solana-prealpha.mjs` with cwd set to this skill folder; optional `--root=<path>` for the project to scan (default `process.cwd()`); add `--force` to match audit-force.
+**Maintainer / integration audit:** `/ika-solana-prealpha audit` / `audit-force` / `audit-fix <rule-id>` — full gate, script, drift catalog, and checklist live in [`references/audit.md`](references/audit.md).
 
 ## pre-alpha disclaimer (non-negotiable)
 
@@ -20,6 +20,7 @@ Normative book: [solana pre-alpha docs](https://solana-pre-alpha.ika.xyz/) — s
 | file | when |
 | --- | --- |
 | [`docs-revision.md`](references/docs-revision.md) | Tracked `docs/` commit vs `main` |
+| [`audit.md`](references/audit.md) | **`audit` / `audit-force` / `audit-fix`**, drift script, `--no-drift`, `--drift=strict`, `.skill-audit.json` |
 | [`grpc-api.md`](references/grpc-api.md) | SubmitTransaction, BCS types, mock matrix, **`Attestation`** |
 | [`account-layouts.md`](references/account-layouts.md) | PDA seeds, offsets |
 | [`instructions.md`](references/instructions.md) | Discriminators, metas, ix data |
@@ -61,20 +62,15 @@ The **program** and **book** use PascalCase instruction names with discriminator
 
 **Rough order:** DKG attestation → **`CommitDWallet`** (NOA) → optional **`TransferOwnership`** → **`ApproveMessage`** → gRPC **`Sign`** → **`CommitSignature`** (NOA) / read **`MessageApproval`**. Detail: [`flows.md`](references/flows.md).
 
-## Audit mode
+## When NOT to use
 
-If this skill is invoked with **`audit`** (e.g. `/ika-solana-prealpha audit`), treat it as a **repo + client integration audit** of the **user’s project** (workspace / `--root`), not a rewrite of this skill.
+- **Non-ika signing work** — if the user needs FHE / `execute_graph` / ciphertext lifecycle, route to **`encrypt-solana-prealpha`**. This skill is for ika dWallet signing, not Encrypt.
+- **Sui ika-sdk questions** — Sui uses PTB + `IkaClient` / objects / effects certs; this skill teaches the Solana pre-alpha surface (txs + gRPC `SubmitTransaction` + PDAs + `ApprovalProof::Solana`). See `grpc-api.md` for the vs-Sui table if the user is migrating.
+- **Production custody / real-value signing** — pre-alpha only (mock signer, devnet resets, no warranty). Redirect to mainnet ika once it exists; do not market this as production MPC.
 
-1. **Gate — skill freshness:** Read [`references/docs-revision.md`](references/docs-revision.md). If `docs/` on `ika-pre-alpha` `main` has changed since the tracked commit (same test as that file: GitHub compare `...main` restricted to `docs/`, or local `git diff <tracked>..origin/main -- docs`), **stop** after reporting: pinned commit, that book sources may be stale, link to compare, and the rule *do not silently rewrite this bundle*. **Do not** run dependency scans or semantic audit on the user repo until this gate passes (or the user uses **audit-force**).
-2. **Deterministic checks:** From the **skill package** repo root (directory containing `skills/ika-solana-prealpha/`), run `node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs --root=<user project>` (no `--force`), or the same path relative to the skill directory’s `scripts/` folder. Paste stdout/stderr; honor non-zero exit as **blocked** when the script reports doc drift. That script also compares **locked** `@ika.xyz/pre-alpha-solana-client` and `@solana/kit` versions to npm **`latest`** when it finds a `package-lock.json`, `pnpm-lock.yaml`, or `yarn.lock` (walking up to the monorepo root).
-3. **Semantic checklist (user code):** With [`flows.md`](references/flows.md), [`grpc-api.md`](references/grpc-api.md), and [`account-layouts.md`](references/account-layouts.md), trace **`Sign` / `SubmitTransaction`**, **`ApproveMessage` / CPI**, **MessageApproval** reads, and **flow 6** verification; cite **file:line**. Note gaps; do not invent upstream APIs.
+## Audit / audit-force / audit-fix
 
-## Audit-force mode
-
-If invoked with **`audit-force`** (e.g. `/ika-solana-prealpha audit-force`), perform the **same** steps as **Audit mode**, except:
-
-1. **Still compute and print** whether `docs/` is stale (commit, compare link, warning that the skill may be wrong for new book prose).
-2. **Then continue** even if stale: run `node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs --force --root=<user project>` (or `node scripts/audit-ika-solana-prealpha.mjs` from the skill folder) and complete the semantic checklist. The human must see the stale warning **before** downstream “all clear” language.
+See [`references/audit.md`](references/audit.md) for the gate, CLI flags (`--force`, `--no-drift`, `--drift=strict`, `--root=`), drift catalog ([`references/drift-rules.mjs`](references/drift-rules.mjs)), `.skill-audit.json` state file, and the full follow-up menu.
 
 ## common mistakes
 

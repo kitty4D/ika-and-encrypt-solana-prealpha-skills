@@ -1,0 +1,79 @@
+{
+  "_description": "Canonical facts the ika-solana-prealpha skill MUST convey. Each fact lists ALL-of phrases that must co-occur in the skill bundle (SKILL.md + references/**). Use short lowercase substrings; match is case-insensitive after normalizing whitespace. Inverse facts assert absence.",
+  "facts": [
+    {
+      "id": "mock-sign-now-supported",
+      "why": "Upstream 2026-04-17 flipped the Mock Support table; old 'mock Sign always errors' story is dead.",
+      "allOf": ["messageapproval", "approvalproof::solana", "mock"]
+    },
+    {
+      "id": "message-approval-pda-seed-layout",
+      "why": "PDA uses chunked ['dwallet','message_approval',scheme_u16_le,...digests] — not a flat triple.",
+      "allOf": ["message_approval", "scheme_u16_le", "message_digest"]
+    },
+    {
+      "id": "canonical-program-id",
+      "why": "Env table must carry the full canonical program id.",
+      "allOf": ["87W54kGYFQ1rgWqMeu4XTPHWXWmXSQCcjm8vCTfiq1oY"]
+    },
+    {
+      "id": "canonical-grpc-host",
+      "why": "Env table must carry the full canonical gRPC URL.",
+      "allOf": ["https://pre-alpha-dev-1.ika.ika-network.net:443"]
+    },
+    {
+      "id": "message-digest-is-keccak256",
+      "why": "core convention: message_digest = keccak-256.",
+      "allOf": ["keccak-256", "message_digest"]
+    },
+    {
+      "id": "response-data-may-wrap-error",
+      "why": "HTTP 200 can still contain TransactionResponseData::Error; always deserialize.",
+      "allOf": ["http", "200", "transactionresponsedata"]
+    },
+    {
+      "id": "dwallet-context-cpi-frameworks",
+      "why": "SKILL.md lists the four CPI framework options.",
+      "allOf": ["pinocchio", "native", "anchor", "quasar"]
+    },
+    {
+      "id": "ts-client-package",
+      "why": "SKILL.md names the ika TS client + @solana/kit pairing.",
+      "allOf": ["@ika.xyz/pre-alpha-solana-client", "@solana/kit"]
+    },
+    {
+      "id": "audit-modes-advertised",
+      "why": "Plan part C: audit, audit-force, audit-fix must all surface.",
+      "allOf": ["audit-force", "audit-fix"]
+    },
+    {
+      "id": "drift-catalog-exposed",
+      "why": "drift-rules.mjs must be discoverable from SKILL.md or references.",
+      "allOf": ["drift-rules.mjs"]
+    },
+    {
+      "id": "when-not-to-use-section",
+      "why": "Disambiguation from Encrypt + Sui + production custody.",
+      "allOf": ["when not to use", "encrypt-solana-prealpha", "production"]
+    }
+  ],
+  "warningFacts": [
+    {
+      "id": "warns-against-simplified-pda-triple",
+      "why": "Skill must actively warn against the old flat triple form.",
+      "allOf": ["not a flat", "message_approval, dwallet, message_hash"]
+    }
+  ],
+  "forbiddenSubstrings": [
+    {
+      "id": "no-mock-sign-always-errors",
+      "why": "Old 'mock Sign always returns Error' story is gone post-2026-04-17.",
+      "patterns": [
+        "mock sign always returns error",
+        "mock sign basically error",
+        "mock can't index solana",
+        "mock cannot index solana"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "_description": "Canonical facts the encrypt-solana-prealpha skill MUST convey. Each fact lists ALL-of phrases that must co-occur in the skill bundle (SKILL.md + references/**). Matching is case-insensitive after whitespace normalization.",
+  "facts": [
+    {
+      "id": "pre-alpha-not-confidential",
+      "why": "Critical safety: ciphertexts can be plaintext on-chain in pre-alpha.",
+      "allOf": ["plaintext", "pre-alpha", "no real"]
+    },
+    {
+      "id": "vector-elementwise-in-encrypt-fn",
+      "why": "Book says vectors use element-wise #[encrypt_fn] with EUint*Vector — NOT always #[encrypt_fn_graph].",
+      "allOf": ["#[encrypt_fn]", "vector", "EUint"]
+    },
+    {
+      "id": "graph-vs-fn-split",
+      "why": "Skill distinguishes #[encrypt_fn] vs #[encrypt_fn_graph].",
+      "allOf": ["#[encrypt_fn]", "#[encrypt_fn_graph]"]
+    },
+    {
+      "id": "quasar-framework-present",
+      "why": "2026-04-17 upstream commit added Quasar as a 4th CPI framework row.",
+      "allOf": ["quasar"]
+    },
+    {
+      "id": "canonical-program-id",
+      "why": "Env table must carry the full canonical program id.",
+      "allOf": ["4ebfzWdKnrnGseuQpezXdG8yCdHqwQ1SSBHD3bWArND8"]
+    },
+    {
+      "id": "canonical-grpc-host",
+      "why": "Env table must carry the full canonical gRPC URL.",
+      "allOf": ["https://pre-alpha-dev-1.encrypt.ika-network.net:443"]
+    },
+    {
+      "id": "grpc-service-name",
+      "why": "encrypt.v1.EncryptService is the canonical gRPC service.",
+      "allOf": ["encrypt.v1.encryptservice", "createinput", "readciphertext"]
+    },
+    {
+      "id": "not-ika-dwallet",
+      "why": "Skill must explicitly disambiguate from ika dWallet signing.",
+      "allOf": ["ika-solana-prealpha", "dwallet"]
+    },
+    {
+      "id": "emit-event-discriminator",
+      "why": "First ix byte = discriminator; emit_event lives at 228.",
+      "allOf": ["discriminator", "228"]
+    },
+    {
+      "id": "audit-modes-advertised",
+      "why": "Plan part C: audit + audit-force + audit-fix must all surface.",
+      "allOf": ["audit-force", "audit-fix"]
+    },
+    {
+      "id": "drift-catalog-exposed",
+      "why": "drift-rules.mjs must be discoverable from SKILL.md or references.",
+      "allOf": ["drift-rules.mjs"]
+    },
+    {
+      "id": "when-not-to-use-section",
+      "why": "Disambiguation from ika + production FHE + Sui.",
+      "allOf": ["when not to use", "ika-solana-prealpha"]
+    }
+  ],
+  "warningFacts": [
+    {
+      "id": "warns-no-real-fhe",
+      "why": "Skill must actively state pre-alpha runs no real FHE.",
+      "allOf": ["no real fhe"]
+    },
+    {
+      "id": "warns-not-production-confidentiality",
+      "why": "Skill must explicitly disclaim production confidentiality.",
+      "allOf": ["not production confidentiality"]
+    }
+  ],
+  "forbiddenSubstrings": [
+    {
+      "id": "no-fhe-benchmark-claim",
+      "why": "Skill must never suggest pre-alpha timings are real FHE benchmarks.",
+      "patterns": [
+        "real fhe benchmark",
+        "production fhe benchmark"
+      ]
+    }
+  ]
+}
