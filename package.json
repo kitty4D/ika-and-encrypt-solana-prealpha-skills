@@ -7,13 +7,13 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "test": "node --test \"tests/skill-lint/*.test.mjs\" \"tests/skill-facts/*.test.mjs\" \"tests/skill-audit/*.test.mjs\" \"tests/skill-effectiveness/*.test.mjs\" \"tests/skill-discovery/*.test.mjs\"",
-    "test:lint": "node --test \"tests/skill-lint/*.test.mjs\"",
-    "test:facts": "node --test \"tests/skill-facts/*.test.mjs\"",
-    "test:audit": "node --test \"tests/skill-audit/*.test.mjs\"",
-    "test:effectiveness": "node --test \"tests/skill-effectiveness/*.test.mjs\"",
-    "test:discovery": "node --test \"tests/skill-discovery/*.test.mjs\"",
-    "test:upstream": "cross-env SKILL_TESTS_NETWORK=1 node --test \"tests/skill-upstream/*.test.mjs\"",
+    "test": "node --test tests/skill-lint/*.test.mjs tests/skill-facts/*.test.mjs tests/skill-audit/*.test.mjs tests/skill-effectiveness/*.test.mjs tests/skill-discovery/*.test.mjs",
+    "test:lint": "node --test tests/skill-lint/*.test.mjs",
+    "test:facts": "node --test tests/skill-facts/*.test.mjs",
+    "test:audit": "node --test tests/skill-audit/*.test.mjs",
+    "test:effectiveness": "node --test tests/skill-effectiveness/*.test.mjs",
+    "test:discovery": "node --test tests/skill-discovery/*.test.mjs",
+    "test:upstream": "cross-env SKILL_TESTS_NETWORK=1 node --test tests/skill-upstream/*.test.mjs",
     "audit:ika": "node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs",
     "audit:encrypt": "node skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs"
   }
