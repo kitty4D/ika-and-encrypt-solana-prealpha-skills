@@ -38,6 +38,16 @@ for chunk in payload.chunks(32) {
 let (dwallet_pda, _bump) = Pubkey::find_program_address(&seeds, &dwallet_program_id);
 ```
 
+### After DKG: deriving the dWallet PDA client-side
+
+The response envelope does not contain the dWallet public key or its PDA. The client must:
+
+1. Take the raw attestation bytes (`NetworkSignedAttestation.attestation_data`).
+2. Parse them as **`VersionedDWalletDataAttestation`** and read the **`V1.public_key`** field (32 bytes for Curve25519 / Ristretto, 33 compressed or 65 uncompressed for Secp256k1).
+3. Build the DWallet PDA seed payload `(curve_u16_le || public_key)` and split into **32-byte chunks** (Solana `MAX_SEED_LEN`).
+4. `findProgramAddress(["dwallet", ...chunks], dwallet_program_id)` = **dWallet address** (base58 PDA).
+5. Store the **public key bytes** alongside the NSA bytes — `PresignForDWallet.dwallet_public_key` and every client-side `MessageApproval` seed derivation need it later. It is not recoverable from the PDA alone.
+
 ---
 
 ## flow 2 - direct approve_message + gRPC Sign (off-chain)

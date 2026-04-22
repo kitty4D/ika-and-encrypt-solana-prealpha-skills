@@ -1,5 +1,29 @@
 # changelog - `ika-solana-prealpha` skill
 
+## 2026-04-22 - client contract gap-fills (no upstream drift)
+
+### why this one is different
+
+not a **`docs/`** pin bump. not chasing upstream drift. **`docs-revision.md`** is still pinned to **`3bd7945…`** and the audit script still prints **fresh** against [dwallet-labs/ika-pre-alpha](https://github.com/dwallet-labs/ika-pre-alpha). this pass just fills three client-side traps that were technically correct-but-sparse in the skill and kept catching ppl in real integration code. (u know the vibe: the type signature was always right, the human just couldn't see the trap from reading it.)
+
+### what we added in this skill (files)
+
+- **`skills/ika-solana-prealpha/references/grpc-api.md`** - new **Client persistence contract (important)** subsection right under the **`NetworkSignedAttestation`** struct + table. tl;dr: store the **full BCS NSA bytes** on the client dWallet record, not just **`attestation_data`**. every later **`PresignForDWallet`** / **`Sign`** embeds the NSA by value as **`dwallet_attestation: NetworkSignedAttestation`**, so if u only persist the inner versioned blob u silently lose **`network_signature`**, **`network_pubkey`**, and **`epoch`**, and validators hard-reject the next request. ships with a tight TS round-trip snippet right under the rule (serialize on DKG → base64 → persist; parse back before Presign / Sign) so it's not just vibes.
+
+- **`skills/ika-solana-prealpha/references/grpc-api.md`** - new **`message_metadata` default** bullet inside **Sign and ImportedKeySign**. empty **`Vec<u8>`** (`[]`) is the correct default for **`EcdsaKeccak256`**, **`EcdsaSha256`**, **`EcdsaDoubleSha256`**, **`TaprootSha256`**, and **`EddsaSha512`**. only **`EcdsaBlake2b256`** and **`SchnorrkelMerlin`** actually want a populated metadata struct (**`Blake2bMessageMetadata`** / **`SchnorrkelMessageMetadata`**). also spells out the PDA-side half: when metadata is empty, **`MessageApproval`** seeds OMIT the **`message_metadata_digest`** seed entirely (links to **`account-layouts.md`**) - u do NOT sub in a 32-byte zero. (zero-filling that seed is the funniest silent PDA-mismatch bug, if u have lived thru it u just felt a little seen.)
+
+- **`skills/ika-solana-prealpha/references/flows.md`** - new **After DKG: deriving the dWallet PDA client-side** subsection immediately after flow 1 step 7. bridges the previously-implicit gap between "decode **`VersionedDWalletDataAttestation`**" (step 6) and "derive the PDA" (step 7): pull **`V1.public_key`** out of the versioned blob (32 bytes for Curve25519 / Ristretto, 33 compressed or 65 uncompressed for Secp256k1), concat **`(curve_u16_le || public_key)`**, chunk into 32-byte pieces (Solana `MAX_SEED_LEN`), `findProgramAddress(["dwallet", ...chunks], dwallet_program_id)`. the receipts-pt-2 note: persist the raw public-key bytes NEXT TO the NSA bytes on the same client record, bc **`PresignForDWallet.dwallet_public_key`** and every client-side **`MessageApproval`** seed derivation need those pubkey bytes later, and they are NOT recoverable from the dWallet PDA alone.
+
+### what we did NOT touch
+
+- **`docs-revision.md`** - unchanged. still pinned to **`3bd7945e012950e54fb4d0057b72a7d466556fc1`** (tracked 2026-04-17).
+- **`README-IKA.md`** - unchanged. the readme is install / scope / attribution tier, not a content index, and bulleting every new subsection there is how readmes drift out of sync w the skill body.
+- **`SKILL.md`** hub - unchanged. the hub was already pointing at the right reference files under existing section headers; these additions slot in without needing new hub rows.
+
+### verification
+
+same audit u've been running: **`node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs`** from the repo root (or the skill folder). nothing in **`references/drift-rules.mjs`** keys on **`NetworkSignedAttestation`** by name, and the existing **`VersionedDWalletDataAttestation`** rule is reinforced (not contradicted) by the new flow-1 subsection. no pin bump, no script changes, no new rules - this is a docs-internal polish release. carry on uwu.
+
 ## 2026-04-17 - align with ika-pre-alpha `main` @ `3bd7945`
 
 ### what upstream did (the short version)

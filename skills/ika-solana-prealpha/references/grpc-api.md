@@ -116,6 +116,27 @@ pub struct NetworkSignedAttestation {
 | `network_pubkey` | NOA public key |
 | `epoch` | ika epoch |
 
+### Client persistence contract (important)
+
+Clients must persist the **full BCS `NetworkSignedAttestation` bytes** returned at DKG — not just `attestation_data`. Every later `PresignForDWallet` / `Sign` request embeds the same struct by value (field `dwallet_attestation: NetworkSignedAttestation`), so the client pipeline is:
+
+1. DKG response → `TransactionResponseData::Attestation(nsa)` → **serialize `nsa` to bytes and store** (e.g. base64 on the client's dWallet record).
+2. Before each Presign / Sign → `bcs::from_bytes::<NetworkSignedAttestation>(stored_bytes)` → drop into the outer request struct → serialize `SignedRequestData` → submit.
+
+If a client stores only `attestation_data` (the versioned inner blob), it loses `network_signature`, `network_pubkey`, and `epoch`, and validators reject the next request. The same rule applies to presign attestations replayed into `Sign`.
+
+```ts
+// after DKG:
+const nsaBytes = bcs.NetworkSignedAttestation.serialize(response.attestation).toBytes();
+const versioned = bcs.VersionedDWalletDataAttestation.parse(response.attestation.attestation_data);
+const publicKey = new Uint8Array(versioned.V1.public_key);
+// persist: { dwalletAttestationB64: b64(nsaBytes), dwalletPublicKeyB64: b64(publicKey) }
+
+// before Presign / Sign:
+const nsa = bcs.NetworkSignedAttestation.parse(b64decode(stored.dwalletAttestationB64));
+// embed `nsa` directly as `dwallet_attestation` in the outer request struct
+```
+
 ### Which versioned type is in `attestation_data`
 
 | originating request | decode as |
@@ -192,6 +213,7 @@ DWalletRequest::Sign {
 
 - **`curve` and per-request `hash_scheme` are not on the wire** — validators derive **`DWalletSignatureScheme`** from the **on-chain `MessageApproval`** and curve from **`dwallet_attestation`**.
 - **`message_metadata`:** BCS for `Blake2bMessageMetadata`, `SchnorrkelMessageMetadata`, etc., when the chosen scheme requires it (e.g. **`EcdsaBlake2b256`**, **`SchnorrkelMerlin`**).
+- **`message_metadata` default:** empty `Vec<u8>` (`[]`) for `EcdsaKeccak256`, `EcdsaSha256`, `EcdsaDoubleSha256`, `TaprootSha256`, and `EddsaSha512`. Only `EcdsaBlake2b256` and `SchnorrkelMerlin` require a populated metadata struct (`Blake2bMessageMetadata` / `SchnorrkelMessageMetadata`). When `message_metadata` is empty, the on-chain `MessageApproval` PDA seeds **omit** the `message_metadata_digest` seed entirely (see [`account-layouts.md`](account-layouts.md) MessageApproval section) — do not substitute a 32-byte zero digest.
 
 **Response (when supported):** `TransactionResponseData::Signature { signature }` (64-byte signature for the active algorithm).
 
