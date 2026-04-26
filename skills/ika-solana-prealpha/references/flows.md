@@ -10,6 +10,7 @@
 6. Flow 6 - signature verification (PDA `message_digest` vs signed digest)
 7. Flow 7 - voting e2e
 8. Flow 8 - multisig e2e
+9. Flow 9 - zero-trust → shared conversion (`MakeUserSecretKeySharePublic`)
 
 Normative documentation URL: [`../SKILL.md`](../SKILL.md). BCS and RPC: [`grpc-api.md`](grpc-api.md). Instruction bytes and metas: [`instructions.md`](instructions.md).
 
@@ -158,3 +159,35 @@ secp.verify_ecdsa(&message, &signature, &pubkey)?;
 7. Optional: **Reject** until `rejection_threshold = member_count - threshold + 1` (see multisig docs in book)
 
 **Which folder to open:** `multisig/<framework>/` — see [`examples.md`](examples.md) for `anchor` / `quasar` / `e2e` / etc.
+
+---
+
+## flow 9 - zero-trust → shared conversion (`MakeUserSecretKeySharePublic`)
+
+**Outcome:** an existing **zero-trust** dWallet ([`dwallet-types.md`](dwallet-types.md)) becomes **shared** — the centralized user share is published on-chain so the network can sign without the user holding any secret material. After conversion, the dWallet has no live `EncryptedUserSecretKeyShare` PDA and signing requests no longer require the user-share encryption key ([`user-share-encryption-keys.md`](user-share-encryption-keys.md)).
+
+**When to use:** handing off a user-controlled dWallet to a smart contract or DAO treasury that needs to sign autonomously; converting a prototype dWallet to a "born-shared" equivalent without re-running DKG. **One-way:** there is no "make share private again" path — once published, the share is public.
+
+1. Have the dWallet's existing **`NetworkSignedAttestation`** ready (the BCS bytes you persisted at flow 1 step 7 — see [`grpc-api.md`](grpc-api.md) **Client persistence contract**). You also need the dWallet's **public key bytes** (persisted alongside the NSA) and the **public form** of the user secret key share you want to publish.
+2. Build `SignedRequestData` with **`DWalletRequest::MakeSharePublic`** ([`grpc-api.md`](grpc-api.md)):
+
+   ```rust
+   DWalletRequest::MakeSharePublic {
+       dwallet_public_key: Vec<u8>,            // from your stored DKG record
+       dwallet_attestation: NetworkSignedAttestation,  // full BCS NSA from DKG
+       public_user_secret_key_share: Vec<u8>,  // the share, in publishable form
+   }
+   ```
+
+   In **pre-alpha mock**, `public_user_secret_key_share` may be a 32-byte placeholder — `chains/solana/examples/protocols-e2e` passes `vec![0u8; 32]` for both `dwallet_public_key` and `public_user_secret_key_share`. Real (non-mock) callers must pass the actual published share bytes.
+
+3. Wrap in `UserSignedRequest` and call gRPC `SubmitTransaction`.
+4. Parse `TransactionResponseData::Attestation(NetworkSignedAttestation)`; decode `attestation_data` as **`VersionedPublicUserKeyShareAttestation`** → **`PublicUserKeyShareAttestationV1`** ([`grpc-api.md`](grpc-api.md) attestation table). The struct carries `session_identifier`, `intended_chain_sender`, `dwallet_public_key`, `public_user_secret_key_share`.
+5. Submit on-chain **`MakeUserSecretKeySharePublic`** (disc **22**, [`instructions.md`](instructions.md)) carrying the new attestation payload.
+6. Submit on-chain **`VerifyMakePublic`** (disc **23**) to commit the public-share state.
+7. Confirm by checking that the **`EncryptedUserSecretKeyShare`** PDA (disc **11**, see [`account-layouts.md`](account-layouts.md)) for this dWallet is **gone or marked retired**. The `DWallet` account itself does not gain an `is_shared` flag — sharedness is determined by the absence of an active encrypted-share PDA plus the existence of the `MakeSharePublic` attestation. See [`dwallet-types.md`](dwallet-types.md) for the detection logic.
+
+**Born-shared alternative:** if you don't have an existing zero-trust dWallet to convert, skip this flow and run flow 1 with **`UserSecretKeyShare::Public { public_user_secret_key_share }`** in the `DWalletRequest::DKG` body instead of `Encrypted { ... }`. The `protocols-e2e` "DKG with Public share mode" step exercises this path.
+
+**Imported-key variant:** the same conversion applies if the dWallet was created via `DWalletRequest::ImportedKeyVerification` with `UserSecretKeyShare::Encrypted` — `MakeSharePublic` works on both. Validators do not need a separate `ImportedKeyMakeSharePublic` request type; the dWallet's `is_imported` flag at offset 143 is independent of its sharedness.
+

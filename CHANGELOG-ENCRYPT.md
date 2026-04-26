@@ -1,5 +1,14 @@
 # changelog - `encrypt-solana-prealpha` skill
 
+## 2026-04-26 - CSO: hub + yaml description
+
+### what changed
+
+- **`SKILL.md`** — `description` is **triggers and symptoms only** (audit workflow not summarized there; one-line entry in **Overview** + existing [`audit.md`](skills/encrypt-solana-prealpha/references/audit.md)). new **Overview** and **When to use**; **pre-alpha disclaimer** and **When NOT to use** de-duped so ika routing is not repeated twice. old **quick pointers** folded into **Quick reference (hub)** to save words without dropping links.
+- **no** `docs-revision.md` pin change; no new reference file.
+
+---
+
 ## 2026-04-21 - correct stale vector gotchas (no upstream pin change, same `f779af5`)
 
 ### what changed

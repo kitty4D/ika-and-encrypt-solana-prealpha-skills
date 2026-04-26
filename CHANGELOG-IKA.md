@@ -1,5 +1,49 @@
 # changelog - `ika-solana-prealpha` skill
 
+## 2026-04-26 - CSO: hub trim + `solana-vs-sui-ika` extract
+
+### what changed
+
+- **`SKILL.md`** — yaml `description` is **triggers only** (no audit-workflow summary in the field). new **Overview** and **When to use**; single **Audit** block pointing at [`audit.md`](skills/ika-solana-prealpha/references/audit.md). **Quick reference (hub)** folds the old on-chain / wire / core / workflows blurbs into one scannable section. **References** table gains a row for the new crosswalk file.
+- **NEW [`references/solana-vs-sui-ika.md`](skills/ika-solana-prealpha/references/solana-vs-sui-ika.md)** — short Sui vs Solana surface comparison, `UserShareEncryptionKeys` + pointer to `user-share-encryption-keys.md`, link to `dwallet-types.md`. Replaces the long **vs Sui** paragraph that lived at the bottom of the hub.
+- **no** `docs-revision.md` pin change; no drift-rule edit.
+
+---
+
+## 2026-04-26 - dWallet types + user-share encryption keys gap-fills (no upstream drift)
+
+### why this one is different
+
+still no **`docs/`** pin bump. **`docs-revision.md`** stays at **`3bd7945e012950e54fb4d0057b72a7d466556fc1`** (re-verified today: upstream `main` has not moved since 2026-04-17). this pass adds two reference files + slots updates into existing files to close two ergonomic gaps a wallet/extension dev would walk straight into:
+
+1. the skill never named the **zero-trust / shared / imported-key** typology the way the live sui docs do at [docs.ika.xyz/docs/sdk/ika-transaction/dwallet-types](https://docs.ika.xyz/docs/sdk/ika-transaction/dwallet-types). all three were technically present (instruction discriminators, `is_imported` flag, `UserSecretKeyShare::Encrypted` vs `Public`) but scattered and never compared. anyone learning the model from the sui docs first would not know how to map "shared dwallet" onto the solana surface from this skill alone. **`MakeUserSecretKeySharePublic`** (disc 22) was orphaned in the discriminator table with zero prose anywhere in flows / grpc-api / examples. now it has a real subsection + a dedicated flow.
+2. user-share encryption keys: the canonical class **`UserShareEncryptionKeys`** lives in sui's **`@ika.xyz/sdk`** but the solana pre-alpha client (`@ika.xyz/pre-alpha-solana-client@0.1.0`) does not expose it - and the upstream ts examples in `chains/solana/examples/_shared/ika-setup.ts` pass literal **zero-byte buffers** for `encrypted_centralized_secret_share_and_proof` and `encryption_key` because the mock signer skips proof validation. a wallet/extension dev modeling the real (non-mock) zero-trust key flow had to leave this skill to find any of that. now they don't.
+
+### what we added in this skill (files)
+
+- **NEW `skills/ika-solana-prealpha/references/dwallet-types.md`** - one-page mapping of the sui taxonomy (zero-trust / shared / imported-key) onto the solana surface. table of how each type is created (gRPC `UserSecretKeyShare` variant + on-chain instruction discriminators), how to detect each from on-chain data (no `is_shared` flag exists; you read it off the `EncryptedUserSecretKeyShare` PDA's presence + the `MakeSharePublic` attestation), and a use-this-when matrix (custody/wallet -> zero-trust, DAO/automation -> shared, key migration -> imported-key). links out to the sui docs page as the canonical conceptual source.
+
+- **NEW `skills/ika-solana-prealpha/references/user-share-encryption-keys.md`** - documents the four ways to source the 32-byte seed that drives `UserShareEncryptionKeys.fromRootSeedKey`: (1) random + persisted, (2) **wallet-signature-derived** (recommended for browser extensions - re-derivable on every popup mount, no secret at rest), (3) BIP-39 mnemonic + BIP-32 path, (4) hardware wallet / secure enclave. plus the three canonical constructors (`fromRootSeedKey`, `fromRootSeedKeyLegacyHash` w/ the curve-byte bug warning, `fromShareEncryptionKeysBytes`), the `createClassGroupsKeypair` primitive, and a decision matrix per use case. closes with the current solana pre-alpha mock state (zeros placeholders) and the migration story for when the solana client surfaces a real analogue.
+
+- **`skills/ika-solana-prealpha/SKILL.md`** - two new rows in the references-load-on-demand table (one per new reference file). expanded the **vs sui ika-sdk** line so a reader looking at the sui docs first understands that `UserShareEncryptionKeys` lives only on the sui side today + points at both new reference files.
+
+- **`skills/ika-solana-prealpha/references/flows.md`** - new **flow 9** at the end (after voting + multisig e2e, to avoid renumbering existing cross-references): step-by-step zero-trust to shared conversion via `DWalletRequest::MakeSharePublic` -> on-chain `MakeUserSecretKeySharePublic` (disc 22) -> `VerifyMakePublic` (disc 23). includes the "born-shared alternative" via `UserSecretKeyShare::Public` in `DKG`, and the imported-key variant (works on both, `is_imported` is independent of sharedness). new TOC line at the top.
+
+- **`skills/ika-solana-prealpha/references/grpc-api.md`** - two surgical edits. (a) right after the `UserSecretKeyShare::Encrypted` description (around the DKG section), added the **pre-alpha mock caveat** showing the exact zeroed-buffer pattern from upstream ts examples + linking to `user-share-encryption-keys.md` for the real model. (b) new **MakeSharePublic** subsection right after Presign, with the full `DWalletRequest::MakeSharePublic` body, the `VersionedPublicUserKeyShareAttestation` / `PublicUserKeyShareAttestationV1` decode shape, the on-chain commit path (disc 22 -> disc 23), the pinocchio program-sdk gap (no `make_share_public()` helper - call disc 22/23 directly), and the same mock-zeros caveat.
+
+- **`skills/ika-solana-prealpha/references/account-layouts.md`** - added a clarifying paragraph right under the **DWallet** account table explaining that the `state` byte at offset 36 is **lifecycle only** (DKGInProgress/Active/Frozen) and that there is **no `is_shared` flag** on the account. spells out the on-chain detection logic (live `EncryptedUserSecretKeyShare` PDA = zero-trust; absent + `MakeSharePublic` attestation = shared) and notes that `is_imported` at offset 143 is **independent** of sharedness.
+
+### what we did NOT touch
+
+- **`docs-revision.md`** - unchanged. still pinned to **`3bd7945e012950e54fb4d0057b72a7d466556fc1`**. these gaps are structural (the upstream solana mdbook also doesn't name the three types) not drift, so no pin bump.
+- **flows 1-8** were not renumbered. cross-references in **`SKILL.md`** and **`grpc-api.md`** that say "flow 6" / "flow 1 step 7" still resolve correctly. the new flow is appended as flow 9.
+- **`drift-rules.mjs`** - unchanged. no rule touches `MakeSharePublic` or `UserShareEncryptionKeys` by name + the new prose doesn't introduce a pattern worth gating on yet.
+- **`README-IKA.md`** - unchanged for the same reason as 2026-04-22 (readme is install/scope/attribution, not a content index).
+
+### verification
+
+run **`node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs`** from the repo root - should still print **`docs/ vs main: fresh`** against [dwallet-labs/ika-pre-alpha](https://github.com/dwallet-labs/ika-pre-alpha). spot-check the two new reference files render correctly and that the new SKILL.md table rows + vs-sui sentence link to them. no script changes, no rule changes, no drift impact - this is purely additive prose. carry on uwu pt 2.
+
 ## 2026-04-22 - client contract gap-fills (no upstream drift)
 
 ### why this one is different

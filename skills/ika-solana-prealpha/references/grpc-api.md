@@ -192,7 +192,21 @@ DWalletRequest::DKG {
 }
 ```
 
-`UserSecretKeyShare::Encrypted` carries `encrypted_centralized_secret_share_and_proof`, `encryption_key`, `signer_public_key`. `Public` carries `public_user_secret_key_share`.
+`UserSecretKeyShare::Encrypted` carries `encrypted_centralized_secret_share_and_proof`, `encryption_key`, `signer_public_key`. `Public` carries `public_user_secret_key_share`. The variant choice determines whether the resulting dWallet is **zero-trust** (`Encrypted`) or **shared** (`Public`) — see [`dwallet-types.md`](dwallet-types.md).
+
+**Pre-alpha mock caveat (important for wallet integrators):** in the upstream TypeScript example (`chains/solana/examples/_shared/ika-setup.ts`), all three `Encrypted` fields are **placeholder zero buffers** because the mock signer skips proof validation:
+
+```typescript
+user_secret_key_share: {
+  Encrypted: {
+    encrypted_centralized_secret_share_and_proof: Array.from(new Uint8Array(32)), // ZEROS
+    encryption_key: Array.from(new Uint8Array(32)),                                // ZEROS
+    signer_public_key: Array.from(payer.publicKey.toBytes()),
+  },
+}
+```
+
+The fields above are the on-the-wire shape for **mock pre-alpha only**. For the conceptual model of how the **real** non-mock encryption key + encrypted share are produced (class-groups keypair, 32-byte seed, four creation paths including the recommended wallet-signature-derived flow for browser extensions), see [`user-share-encryption-keys.md`](user-share-encryption-keys.md). The canonical SDK class — Sui's `@ika.xyz/sdk` `UserShareEncryptionKeys` — is documented at [docs.ika.xyz/docs/sdk/user-share-encryption-keys](https://docs.ika.xyz/docs/sdk/user-share-encryption-keys); it is **not** yet surfaced by `@ika.xyz/pre-alpha-solana-client` (`0.1.0`'s `src/index.ts` exports nothing).
 
 **Response:** `TransactionResponseData::Attestation(NetworkSignedAttestation)`; decode `attestation_data` as **`VersionedDWalletDataAttestation`** for `commit_dwallet` input.
 
@@ -223,6 +237,28 @@ DWalletRequest::Sign {
 - **`PresignForDWallet`** uses **`dwallet_public_key`** (not a legacy `dwallet_id`).
 
 **Response:** **`Attestation`** with **`VersionedPresignDataAttestation`** (no separate `Presign` top-level response variant).
+
+### MakeSharePublic (zero-trust → shared conversion)
+
+Converts an existing **zero-trust** dWallet ([`dwallet-types.md`](dwallet-types.md)) into a **shared** dWallet by publishing the user's centralized secret share. After commit, the network can sign for the dWallet without the user holding any encrypted material; the user-share encryption key ([`user-share-encryption-keys.md`](user-share-encryption-keys.md)) is no longer needed for this dWallet.
+
+```rust
+DWalletRequest::MakeSharePublic {
+    dwallet_public_key: Vec<u8>,                    // from your stored DKG record
+    dwallet_attestation: NetworkSignedAttestation,  // full BCS NSA from DKG
+    public_user_secret_key_share: Vec<u8>,          // share in publishable form
+}
+```
+
+**Response:** **`TransactionResponseData::Attestation(NetworkSignedAttestation)`**; decode `attestation_data` as **`VersionedPublicUserKeyShareAttestation`** → **`PublicUserKeyShareAttestationV1`** (fields: `session_identifier: [u8; 32]`, `intended_chain_sender: Vec<u8>`, `dwallet_public_key: Vec<u8>`, `public_user_secret_key_share: Vec<u8>`).
+
+**On-chain commit (after the gRPC call):** submit on-chain **`MakeUserSecretKeySharePublic`** (disc **22**, [`instructions.md`](instructions.md)) carrying the new attestation, then **`VerifyMakePublic`** (disc **23**) to commit the public-share state. The Solana CPI program-sdk does **not** expose a `make_share_public()` helper — pinocchio's `cpi.rs` only exports `approve_message`, `transfer_dwallet`, `transfer_future_sign` — so callers invoke disc 22 / 23 directly via `TransactionInstruction`.
+
+**Pre-alpha mock caveat:** `chains/solana/examples/protocols-e2e` exercises this with `dwallet_public_key: vec![0u8; 32]` and `public_user_secret_key_share: vec![0u8; 32]` (matching the same zeroed-placeholder pattern as the DKG `Encrypted` variant above). Real (non-mock) callers must pass the actual dWallet public key bytes and the real publishable share bytes.
+
+**End-to-end flow:** [`flows.md`](flows.md) flow 9.
+
+**Born-shared alternative:** if you have no existing zero-trust dWallet to convert, use `DWalletRequest::DKG` with `UserSecretKeyShare::Public { public_user_secret_key_share }` directly — no `MakeSharePublic` call needed.
 
 ---
 

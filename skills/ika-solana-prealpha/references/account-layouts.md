@@ -102,6 +102,8 @@ Read NEK bytes from chain for `dwallet_network_encryption_public_key` in DKG req
 | 144 | bump | 1 | |
 | 145 | _reserved | 8 | |
 
+**`state` byte values:** `0` DKGInProgress, `1` Active, `2` Frozen — **lifecycle only**, not trust-model. There is **no `is_shared` / `is_public` flag** on the `DWallet` account; whether a dWallet is **zero-trust** or **shared** ([`dwallet-types.md`](dwallet-types.md)) is determined by the `UserSecretKeyShare` variant chosen at DKG (or import) and, for the conversion path, by the `MakeUserSecretKeySharePublic` (disc **22**) → `VerifyMakePublic` (disc **23**) lifecycle. Detection from on-chain data: a live `EncryptedUserSecretKeyShare` PDA (disc **11**) for this dWallet means **zero-trust**; absence (or retired) plus a recorded `MakeSharePublic` attestation means **shared**. `is_imported` at offset **143** is **independent** of sharedness — imported-key dWallets can be either zero-trust or shared depending on the variant chosen at `ImportedKeyVerification` time.
+
 ---
 
 ### MessageApproval - 312 bytes (2 + 310)
