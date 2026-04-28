@@ -1,5 +1,40 @@
 # changelog - `encrypt-solana-prealpha` skill
 
+## 2026-04-28 - bump pin to `8b8518d`: vector reductions and rotate_entries land upstream
+
+### what upstream did
+
+2 commits, focused doc-and-DSL update for vector ops. ya girl is so back lol:
+
+- **finally has reductions:** `reduce_add` / `reduce_min` / `reduce_max` collapse a numeric vector to a scalar of the element type, `reduce_any` / `reduce_all` go from `EUint8Vector` to `EBool`. mhm, no more decrypt-and-aggregate-clientside workarounds for full-vector aggregations.
+- **new `rotate_entries(&n)` op:** cyclic left rotation by an encrypted scalar shift count. wraps within the vector's element count.
+- **subtle gotcha:** reductions span the **full element count** of the vector, not just the populated prefix. unset slots are 0, so `reduce_min` over a partially-filled vector is always 0 and `reduce_all` is always false unless you pad with sentinels. the rest of the reductions (`add` / `max` / `any`) are usually fine for prefix workloads bc zeros don't dominate.
+- **5 new `FheOperation` discriminators** (96 + 110-114) plus `is_reduction()` / `result_type()` helpers. new `Reduction` / `CrossEntry` / `LinearAlgebra` traits in `encrypt-dsl`. e2e example coverage for the new ops in `chains/solana/examples/vector-ops/pinocchio/`.
+
+### what we changed in this skill (files)
+
+- `skills/encrypt-solana-prealpha/references/docs-revision.md` - pinned `docs/` to **`8b8518d119a674bb28cf4d89a5f971693899c973`** (was **`f098ac9...`**, 2026-04-27). upstream commit date 2026-04-28, recorded 2026-04-28.
+- `skills/encrypt-solana-prealpha/references/dsl-vectors.md` - refreshed the book snapshot:
+  - added `### Rotate Entries` subsection under "Vector-Specific Operations" (the cyclic left rotation op).
+  - added new top-level `## Reductions` section with three subsections: Sum/Min/Max, Boolean Reductions, Composing Reductions. includes the unset-slots-are-zero caveat that bites `reduce_min` / `reduce_all` over partial-prefix vectors.
+  - dropped two now-incorrect bullets from `## Limitations`: "No reductions" and "No cross-type extraction" (reductions exist now; cross-type extraction was never the right framing for the `.get()` behavior).
+- `skills/encrypt-solana-prealpha/references/gotchas.md` - replaced the now-wrong "No vector reduction operations" section in **SDK Gaps & Undefined Behavior** with two cleaner sections:
+  - `### Vector reductions span the full element count` - the real gotcha now is the unset-slots-as-zero behavior, with a per-reduction table of which ones are safe over a prefix and which need padding.
+  - `### .get() returns a vector, not a scalar` - kept the `.get()` extraction note that used to live inside the old reductions section, since `.get()` still returns a vector even though reductions return real scalars now.
+
+### what we did NOT change
+
+- `references/grpc-api.md`, `instructions.md`, `flows.md` - proto + user-ix surface unchanged.
+- canonical env (program id, gRPC URL, Solana RPC URL) - unchanged.
+- `dsl-operations.md` / `dsl-types.md` snapshots - upstream `operations.md` and `types.md` did not change in these 2 commits, so the snapshots stay in sync. the new ops live on traits in code; the published operations chapter wasn't touched.
+- no new drift rules - the "still hand-rolling clientside reductions" pattern doesn't have a precise mechanical signature (every codebase invents its own loop), so the audit script can't reliably flag it. lowercase rip.
+
+### audit status
+
+`node skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs --root=.` reports **`docs/ vs main: fresh`**, drift block clean, exit 0. tests still 196/196.
+
+---
+
 ## 2026-04-28 - bump pin to `f098ac9`: 17-byte input format gotcha + receipt-gated composability
 
 ### what upstream did

@@ -202,10 +202,22 @@ let safe_denom = select(is_zero, ONE_VEC, denominator);
 let result = numerator / safe_denom;
 ```
 
-### No vector reduction operations
+### Vector reductions span the full element count
 
-`.sum()`, `.any()`, `.max()` do not exist in the SDK — no operation collapses a full vector to a scalar in a single graph (confirmed on the roadmap in [`dsl-vectors.md`](dsl-vectors.md)).
+As of upstream `8b8518d` (2026-04-28), reductions exist as `reduce_add` / `reduce_min` / `reduce_max` (numeric vector → scalar of element type) and `reduce_any` / `reduce_all` (`EUint8Vector` → `EBool`). They collapse a vector down to a real scalar inside a single graph — see [`dsl-vectors.md`](dsl-vectors.md#reductions).
 
-**Partial workaround — single element:** use `.get(&index_vec)` to extract one element; the result is a vector where position 0 holds the value and the rest are zero. That is still a vector type, not a scalar — if you need a scalar `EUint*`, you have to decrypt the output and re-create a scalar input via gRPC.
+**The reduction always covers every entry of the vector**, not just the populated prefix. Unset slots are treated as `0`, so:
 
-If you need a true scalar derived from a full vector aggregation, the only path today is: decrypt the vector, compute the reduction client-side, feed the result back as a new scalar `createInput`.
+| reduction | effect over a partially-populated vector |
+| --- | --- |
+| `reduce_min` | always **0** — the unset tail dominates |
+| `reduce_all` | always **false** — any unset slot vetoes |
+| `reduce_max` | usually fine for prefix workloads (zeros lose) |
+| `reduce_add` | usually fine for prefix workloads (zeros add nothing) |
+| `reduce_any` | usually fine for prefix workloads (zeros don't trigger) |
+
+**Workaround:** pad the vector with the right sentinel before reducing — typically the **maximum value of the element type** for `reduce_min`, and `1` for `reduce_all`.
+
+### `.get()` returns a vector, not a scalar
+
+`v.get(&index_vec)` extracts a single element by index, but the result is still a **vector type** with the value at position `0` and the rest zero — not a scalar `EUint*`. For genuine vector → scalar of the same type, use the reductions above. If you need a single element as a scalar (rather than a reduction across all elements), there is no in-graph path today — decrypt and re-create a scalar input via gRPC `CreateInput`.

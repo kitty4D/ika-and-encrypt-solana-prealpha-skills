@@ -130,8 +130,6 @@ Detail on each follows.
 - DAO or multi-party treasuries operating agents collectively
 - Avoiding the 402Bridge failure mode where a single operator's key compromise = total loss
 
-For ika specifically, this repo also publishes the `ika-solana-prealpha` skill (a separate, unrelated skill in this same monorepo). If you actually want to integrate ika dWallets, load that skill — this skill stays implementation-neutral and won't walk you through dWallet integration.
-
 ---
 
 ## Smart contract wallets
