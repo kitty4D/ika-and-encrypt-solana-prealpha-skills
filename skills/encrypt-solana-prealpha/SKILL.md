@@ -72,7 +72,9 @@ Normative: [Encrypt Developer Guide](https://docs.encrypt.xyz/) · mdbook in [`e
 | Assuming pre-alpha ciphertexts are secret | Treat as **public / plaintext-capable** (book + repo). |
 | Assuming vectors always need `#[encrypt_fn_graph]` | Book **Vectors** — element-wise **`#[encrypt_fn]`** with `EUint*Vector` — [`dsl-vectors.md`](references/dsl-vectors.md). If DSL errors (`HasFheTypeId`) or you need graph-only bytes, use **`#[encrypt_fn_graph]`** — [`gotchas.md`](references/gotchas.md). |
 | Treating devnet times as FHE benchmarks | **No real FHE** in pre-alpha — see [`performance-caveats.md`](references/performance-caveats.md). |
+| Hand-rolling `ciphertext_bytes` as 16 raw LE bytes | Use the **17-byte `[fhe_type \|\| value_le]`** form — `encryptValue(v, fheType)` / `mockCiphertext(v, fheType)`. Missing tag silently misreads scalars (e.g. `EUint64` returns `value >> 8`). [`gotchas.md`](references/gotchas.md#grpc-createinput-requires-the-17-byte-input-format) |
 | Wrong `CreateInput` **authorized** / **network_encryption_public_key** | [`grpc-api.md`](references/grpc-api.md) — **NetworkEncryptionKey** + access rules. |
+| Reaching for `Approve` + `TransferFrom` to compose with pc-token | If the caller gates its own state on the transfer, prefer **receipt-gated** composability via `TransferWithReceipt` (pc-token disc 22) — [`flows.md` flow 7](references/flows.md#flow-7--cross-program-composability-receipt-gated). Allowance-based is for *authorized delivery* only. |
 | **Encrypt** vs **ika** dWallet | ika → **`ika-solana-prealpha`**. |
 | Patching the skill when upstream `docs/` moved | **Notify user** — [`docs-revision.md`](references/docs-revision.md). |
 | Forgetting **fees / deposits / events** | [`fee-and-state-reference.md`](references/fee-and-state-reference.md), [`book-snapshots.md`](references/book-snapshots.md). |

@@ -163,4 +163,59 @@ export const rules = [
       'Ask the encrypt-solana-prealpha skill: "Add Quasar to the list of supported ' +
       'Encrypt CPI frameworks per frameworks.md. Files: <LIST>"',
   },
+  {
+    id: "enc-mock-ciphertext-16-byte-no-type-tag",
+    since: "2026-04-28",
+    severity: "high",
+    category: "silent-bug",
+    title:
+      "`mockCiphertext` / `encryptValue` called without an `fheType` argument — emits 16 raw bytes, executor falls into a fallback that misreads multi-byte scalars",
+    appliesTo: EXT_JSLIKE,
+    detect: (text) => {
+      // Two failure modes:
+      //  (a) calls to mockCiphertext / encryptValue with a single arg
+      //  (b) hand-rolled `new Uint8Array(16)` near a `ciphertext` / `mockCiphertext` mention
+      const callPattern = /\b(mockCiphertext|encryptValue)\s*\(\s*[^,)]+\s*\)/;
+      const handRolled =
+        /new\s+Uint8Array\s*\(\s*16\s*\)/.test(text) &&
+        /\bciphertext|mockCiphertext|encryptValue\b/i.test(text);
+      if (!callPattern.test(text) && !handRolled) return false;
+      return matchLines(
+        text,
+        /\b(mockCiphertext|encryptValue)\s*\(\s*[^,)]+\s*\)|new\s+Uint8Array\s*\(\s*16\s*\)/,
+      );
+    },
+    evidence: "gotchas.md grpc-createinput-requires-the-17-byte-input-format",
+    fixPrompt:
+      'Ask the encrypt-solana-prealpha skill: "Audit every mockCiphertext / encryptValue call ' +
+      "and any hand-rolled 16-byte ciphertext buffer; switch to the 17-byte " +
+      "[fhe_type || value_le] form per gotchas.md. Files: <LIST>\"",
+  },
+  {
+    id: "enc-pc-swap-delegate-allowance-stale-pattern",
+    since: "2026-04-28",
+    severity: "medium",
+    category: "missing-feature",
+    title:
+      "Code mentions pc-swap composability via Approve / TransferFrom delegate-allowance — pc-swap switched to receipt-gated (2026-04-27)",
+    // Walker only yields code extensions (see walker.mjs DRIFT_EXT), so .md docs
+    // are out of scope here. The rule fires when pinocchio/anchor/native pc-swap
+    // implementations or TS clients cling to the older delegate flow.
+    appliesTo: EXT_JSLIKE.concat(EXT_RUST_ONLY),
+    detect: (text) => {
+      const mentionsPcSwap = /\bpc[-_]?swap\b/i.test(text);
+      if (!mentionsPcSwap) return false;
+      const hasAllowanceTalk =
+        /\b(approve|transfer_from|allowance|delegate)\b/i.test(text);
+      if (!hasAllowanceTalk) return false;
+      // If the file already knows about receipts / TransferWithReceipt, skip.
+      if (/\bTransferWithReceipt\b|\breceipt[_-]?ct\b|\breceipt[-_ ]?gated\b/i.test(text))
+        return false;
+      return matchLines(text, /\bpc[-_]?swap\b/i);
+    },
+    evidence: "flows.md flow 7 + gotchas.md cross-program-composability",
+    fixPrompt:
+      'Ask the encrypt-solana-prealpha skill: "Update pc-swap composability references ' +
+      'to the receipt-gated TransferWithReceipt pattern per flows.md flow 7. Files: <LIST>"',
+  },
 ];

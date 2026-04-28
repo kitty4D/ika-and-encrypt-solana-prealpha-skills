@@ -6,10 +6,10 @@ Published book: [Encrypt Developer Guide](https://docs.encrypt.xyz/) is built fr
 
 | field | value |
 | --- | --- |
-| commit (full) | `f779af5b2ffb33ad3902dc69cbbe6922bdc8b479` |
-| commit (short) | `f779af5` |
-| upstream commit date (UTC) | 2026-04-16 |
-| recorded in skill | 2026-04-17 |
+| commit (full) | `f098ac9e61fb9b39b457b860f33382f44ae9d65b` |
+| commit (short) | `f098ac9` |
+| upstream commit date (UTC) | 2026-04-27 |
+| recorded in skill | 2026-04-28 |
 
 **Interpretation:** This skill’s prose was last aligned with the **`docs/`** tree at the commit above on **`main`**. **Only** changes under `docs/` in `encrypt-pre-alpha` matter when deciding whether book-derived summaries in this bundle may be stale (program, proto, or crate churn still warrants a maintainer pass if behavior changes).
 

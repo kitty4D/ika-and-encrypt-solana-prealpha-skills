@@ -12,9 +12,9 @@ See also: [`performance-caveats.md`](performance-caveats.md) for timing and REFH
 
 When a vector ciphertext produced by one `execute_graph` CPI call is used as an input to a *second* graph, the second graph's vector output may return zeros from `ReadCiphertext` even though the executor commits a non-zero digest (status = 1).
 
-**As of the `f779af5` pin (2026-04-17):** graphs where all inputs come from fresh `createInput` calls are verified working — the official `chains/solana/examples/vector-ops` e2e tests confirm multi-element vectors round-trip correctly in that case. Whether chained graph → graph vector inputs are also now fixed is not covered by the published examples, so assume this limitation may still apply until you field-test it.
+**As of the `f098ac9` pin (2026-04-27):** graphs where all inputs come from fresh `createInput` calls are verified working — the official `chains/solana/examples/vector-ops` e2e tests confirm multi-element vectors round-trip correctly in that case. Whether chained graph → graph vector inputs are also now fixed is not covered by the published examples, so assume this limitation may still apply until you field-test it.
 
-**Root cause (historic):** `MockEncryptor` was truncating all ciphertext data to 16 bytes regardless of FHE type, so vector digests were computed on zeros-padded data. This was fixed in the "Add vector support" commit (2026-04-15). The same fix likely resolved the chained case, but there is no e2e test to confirm.
+**Root cause (historic):** the executor's internal `MockEncryptor` was truncating all ciphertext data to 16 bytes regardless of FHE type, so vector digests were computed on zeros-padded data. This was fixed in the "Add vector support" commit (2026-04-15). A separate but related client-side encoding bug (16-byte input bytes, no type tag) was fixed in commit `303439d` (2026-04-26) — see [gRPC `CreateInput` requires the 17-byte input format](#grpc-createinput-requires-the-17-byte-input-format) below.
 
 ---
 
@@ -111,6 +111,35 @@ For the on-chain `DecryptionRequest` path (when using `request_decryption` + pol
 
 Actual encrypted data is stored off-chain by the executor — the on-chain account is metadata only.
 
+### gRPC `CreateInput` requires the 17-byte input format
+
+`EncryptedInput.ciphertext_bytes` (the bytes you submit to `CreateInput`) must be the executor's **legacy 17-byte format**: one `fhe_type` tag byte followed by 16 little-endian value bytes — `[fhe_type(1) || value_le(16)]`. **Without the type tag**, the executor falls into a fallback path that misreads multi-byte scalars: e.g. `EUint64` returns `value >> 8`. Silent in any flow where corruption hides inside encrypted state — surfaced in `pc-token` only when `unwrap_burn` produced a burned amount that mismatched the receipt's plaintext requested amount, trapping SPL deposits in the vault.
+
+**Canonical helpers (use these as templates, do not hand-roll):**
+
+| helper | location | export |
+| --- | --- | --- |
+| `encryptValue(value, fheType)` | `@encrypt.xyz/pre-alpha-solana-client/grpc-web` | npm package |
+| `mockCiphertext(value, fheType)` | `chains/solana/examples/_shared/helpers.ts` | repo demo helper |
+
+**Old single-argument `mockCiphertext(value)` is wrong** — it emitted 16 raw bytes with no type tag. Anything cribbed from pre-`303439d` (2026-04-26) examples needs the `fheType` argument added at every call site.
+
+```typescript
+// CORRECT — 17 bytes, fhe_type prefix required
+export function mockCiphertext(value: bigint, fheType: number): Uint8Array {
+  const buf = new Uint8Array(17);
+  buf[0] = fheType;
+  let v = value;
+  for (let i = 0; i < 16; i++) {
+    buf[1 + i] = Number(v & 0xffn);
+    v >>= 8n;
+  }
+  return buf;
+}
+```
+
+The on-chain scalar ciphertext account stores the same 17-byte payload (see [FHE type discriminants](#fhe-type-discriminants)) — input format and on-chain layout are intentionally aligned in pre-alpha.
+
 ---
 
 ## CPI Integration
@@ -148,6 +177,10 @@ Dev executor uses `Buffer.alloc(32, 0x55)` as the mock network encryption key. M
 | EUint128 (scalar) | 5 | 17 bytes (1 type + 16 value) |
 | EVectorU128 (512 elements) | 36 | 8,193 bytes (1 type + 8,192 value) |
 | EBitVector256 | 23 | — |
+
+### Cross-program composability: receipt-gated vs delegate-allowance
+
+If a calling program needs to gate its own FHE state on whether a transfer in another program **actually succeeded** (without ever seeing the from-balance), use **receipt-gated** composability — `pc-token` instruction `TransferWithReceipt` (disc 22) emits a binary receipt ciphertext (`= amount` on success, `= 0` on insufficient balance) and transfers its `authorized` ACL to a caller-supplied target program. This is what `pc-swap` switched to in upstream commit `425567e` (2026-04-27); the older delegate-allowance sketch in pc-swap docs no longer matches the program. Full pattern: [`flows.md` flow 7](flows.md#flow-7--cross-program-composability-receipt-gated). Use **allowance-based** (`Approve` + `TransferFrom`) only when the calling program just needs *authorized delivery* and does not read downstream state.
 
 ---
 

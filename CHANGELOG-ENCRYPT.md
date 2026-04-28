@@ -1,5 +1,39 @@
 # changelog - `encrypt-solana-prealpha` skill
 
+## 2026-04-28 - bump pin to `f098ac9`: 17-byte input format gotcha + receipt-gated composability
+
+### what upstream did
+
+5 commits, 24 files. ya girl is gonna break it down lol:
+
+- **`303439d` (2026-04-26) - mock ciphertext encoding fix.** `mockCiphertext` and grpc-web's `encryptValue` were emitting **16 raw bytes with no type tag**. silent bug for multi-byte scalars: executor falls into a fallback that returns `value >> 8` for `EUint64`. surfaced in pc-token only when `unwrap_burn`'s burned amount mismatched the receipt's plaintext requested amount, trapping SPL deposits in the vault. fixed: now both helpers emit **17 bytes `[fhe_type(1) || value_le(16)]`**. hella important for anyone hand-rolling client-side mock encryption.
+- **`43949cc` (2026-04-26) - sync `encrypt-service` from encrypt.** added `plaintext_bytes: Vec<u8>` field to `CiphertextCreatedRequest`. internal executor crate state - pre-alpha doesn't ship the listener/executor itself. **not user-facing** for skill consumers. skipped in skill updates.
+- **`0c4d63e` / `425567e` / `f098ac9` (2026-04-27) - receipt-gated composability** between `pc-token` and `pc-swap`. new pc-token instruction `TransferWithReceipt` (disc 22) emits a binary receipt ciphertext (= amount on success, 0 on insufficient balance) and transfers its `authorized` ACL to a caller-supplied `target_program`. pc-swap now gates every reserve/payout/LP-supply update on the receipt - a lying user yields receipt = 0, so all gated values collapse to 0 uniformly. **replaces** the older delegate-allowance composability sketch in pc-swap docs (which never matched the real program lol). docs rewrites in `pc-swap/01-03` and `pc-token/01-03`.
+
+### what we changed in this skill (files)
+
+- **`skills/encrypt-solana-prealpha/references/docs-revision.md`** - pinned `docs/` to **`f098ac9e61fb9b39b457b860f33382f44ae9d65b`** (was **`f779af5...`**, 2026-04-16). upstream commit date 2026-04-27, recorded 2026-04-28.
+- **`skills/encrypt-solana-prealpha/references/gotchas.md`** - added section **"gRPC `CreateInput` requires the 17-byte input format"** under Ciphertext Lifecycle, with canonical helper table and corrected `mockCiphertext` template. added section **"Cross-program composability: receipt-gated vs delegate-allowance"** under CPI Integration, pointing at `flows.md` flow 7. corrected the historic-bug note in "Vector graph outputs when chained" to distinguish executor-side `MockEncryptor` truncation (pre-`f779af5`, fixed) from the new client-side `mockCiphertext` bug (`303439d`, also fixed).
+- **`skills/encrypt-solana-prealpha/references/grpc-api.md`** - documented the 17-byte `ciphertext_bytes` format on `EncryptedInput`, with helper references and a link to gotchas. updated TS client snippet to show `encryptValue(value, fheType)` usage end-to-end.
+- **`skills/encrypt-solana-prealpha/references/flows.md`** - added the 17-byte format requirement to flow 2 (ciphertext creation). added new **flow 7 - cross-program composability (receipt-gated)** describing the source-program / caller-program halves of the `TransferWithReceipt` pattern, with a "when to prefer allowance-based" note for streaming-payments-style flows that just need authorized delivery.
+- **`skills/encrypt-solana-prealpha/SKILL.md`** - common-mistakes table got two new rows: hand-rolling 16-byte `ciphertext_bytes` (silent bug), and reaching for `Approve` + `TransferFrom` when receipt-gated would be more accurate.
+- **`skills/encrypt-solana-prealpha/references/drift-rules.mjs`** - two new rules:
+  - `enc-mock-ciphertext-16-byte-no-type-tag` (high, silent-bug) - flags single-arg `mockCiphertext(value)` / `encryptValue(value)` calls and hand-rolled `new Uint8Array(16)` near ciphertext mentions. since 2026-04-28.
+  - `enc-pc-swap-delegate-allowance-stale-pattern` (medium, missing-feature) - flags pc-swap mentions paired with allowance/transfer_from/approve/delegate that don't already mention `TransferWithReceipt` or receipt-gated terms. since 2026-04-28.
+
+### what we did NOT change
+
+- **no `book-snapshots.md` snapshots** affected. all 6 changed `docs/` files are example walkthroughs (pc-swap, pc-token), which are already **link-only / keep in book** per `book-snapshots.md` and `developer-guide-map.md`. no DSL or reference chapters changed.
+- **no public Encrypt program instruction changes**. `create_plaintext_ciphertext` (disc 2) was already documented; the new `TransferWithReceipt` instruction is part of the **pc-token program**, not the Encrypt program itself - so `instructions.md` (which is the Encrypt program reference) stays put.
+- **no public gRPC API surface changes**. `CreateInput` / `ReadCiphertext` proto unchanged - only the `ciphertext_bytes` encoding for scalar inputs needed clarifying (which was always the rule, just silently buggy in the helpers).
+- **no canonical environment changes**. program id, gRPC URL, RPC URL all unchanged.
+
+### audit status
+
+`node skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs --root=.` reports **`docs/ vs main: fresh`**, drift block clean, exit 0. mhm that's right :3
+
+---
+
 ## 2026-04-26 - CSO: hub + yaml description
 
 ### what changed

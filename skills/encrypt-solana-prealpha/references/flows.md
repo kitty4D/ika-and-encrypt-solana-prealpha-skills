@@ -32,7 +32,7 @@ Two major paths (see [instructions reference](https://docs.encrypt.xyz/reference
 | `create_input_ciphertext` | 1 | authority | Verified ciphertext from off-chain encrypted payload + proof flow |
 | `create_plaintext_ciphertext` | 2 | user signer or CPI | Plaintext → pending ciphertext; executor fills digest later |
 
-**gRPC alternative:** batch **`CreateInput`** on `EncryptService` so the executor creates inputs with a shared proof / authorized party — [`grpc-api.md`](grpc-api.md).
+**gRPC alternative:** batch **`CreateInput`** on `EncryptService` so the executor creates inputs with a shared proof / authorized party — [`grpc-api.md`](grpc-api.md). **Important:** scalar `ciphertext_bytes` must be the 17-byte `[fhe_type(1) || value_le(16)]` form — without the type tag the executor misreads multi-byte scalars. Use `encryptValue` / `mockCiphertext` rather than hand-rolling — see [`gotchas.md`](gotchas.md#grpc-createinput-requires-the-17-byte-input-format).
 
 ---
 
@@ -66,3 +66,23 @@ Pre-alpha README: executor handles create_input, graph eval + commit, and decryp
 - **Harness:** `encrypt-solana-test`, LiteSVM, `MockComputeEngine` — see **testing** chapters in the book.
 
 Examples under `chains/solana/examples/` (voting, counter, ACL, `pc-token`, `pc-swap`, coin-flip) ship **Pinocchio, Anchor, Native, and Quasar** variants when present in upstream for each example.
+
+---
+
+## flow 7 — cross-program composability (receipt-gated)
+
+When one program needs to act on whether an FHE op in another program **succeeded** without ever seeing plaintext or the source state (e.g. a from-balance), use **receipt-gated** composability. This is the pattern `pc-swap` switched to in upstream commit `425567e` (2026-04-27); the older delegate-allowance composability sketch in pc-swap docs no longer matches the program.
+
+**Source-program side** (e.g. `pc-token`, instruction `TransferWithReceipt` = disc 22):
+
+1. The same FHE graph that updates `from.balance` and `to.balance` outputs a third ciphertext: a **binary receipt** equal to `amount` if `from_balance >= amount`, otherwise `0`.
+2. The handler transfers the receipt's `authorized` ACL to a caller-supplied `target_program` argument — usually the calling program's ID. The receipt is now readable inside that program's own FHE graphs.
+
+**Caller-program side** (e.g. `pc-swap`):
+
+1. **Authorize** the `amount_ct` to the source program: `ctx.transfer_ciphertext(amount_ct, source_program)`.
+2. **CPI** the source program's receipt-emitting variant with a fresh receipt-ciphertext keypair and `target = caller_program_id`.
+3. **Use** the receipt in the caller's own graphs — every reserve / payout / LP-supply update gates on the receipt. A lying user yields `receipt = 0`, so all gated values collapse to 0 uniformly: pool state stays consistent with no special-case branching, and no plaintext source state ever crosses the boundary.
+4. **Close** the receipt at the end with `close_ciphertext` to reclaim its rent.
+
+**When to prefer allowance-based (`Approve` + `TransferFrom`) instead:** the calling program just needs *authorized delivery* and never reads downstream state (e.g. a streaming-payments program). Both patterns ship in `pc-token` — see [pc-token book](https://docs.encrypt.xyz/examples/pc-token/01-overview.html) and [pc-swap book](https://docs.encrypt.xyz/examples/pc-swap/01-overview.html).
