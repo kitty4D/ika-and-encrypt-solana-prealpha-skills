@@ -1,6 +1,6 @@
 ---
 name: ika-solana-prealpha
-description: Use when working with ika dWallet on Solana pre-alpha (devnet, mock signer), gRPC DWalletService SubmitTransaction, BCS signing and attestation types, ApproveMessage and MessageApproval PDAs, CommitDWallet, CommitSignature, DWalletContext CPI, @ika.xyz/pre-alpha-solana-client, or when the book vs ika-pre-alpha repo drifts, PDA or seed errors, gRPC or BCS failures, or comparing this stack to the Sui ika-sdk.
+description: Use when working with ika dWallet on Solana pre-alpha (devnet, mock signer), gRPC DWalletService SubmitTransaction, BCS signing and attestation types, ApproveMessage and MessageApproval PDAs, CommitDWallet, CommitSignature, DWalletContext CPI, @ika.xyz/pre-alpha-solana-client + @solana/kit, or when the book vs ika-pre-alpha repo drifts, PDA or seed errors, gRPC or BCS failures, comparing this stack to the Sui ika-sdk, or running the skill's `audit` / `audit-force` / `audit-fix` verbs for freshness gating and drift remediation.
 ---
 
 # ika solana pre-alpha
