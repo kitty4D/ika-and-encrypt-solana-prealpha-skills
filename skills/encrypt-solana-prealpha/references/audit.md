@@ -25,6 +25,18 @@ Unless `--no-drift` is passed, every run appends a `--- drift: skill-vs-codebase
 
 Catalog lives in [`drift-rules.mjs`](drift-rules.mjs) (sibling of this doc). Each rule has a stable `id`, a `severity` (critical / high / medium / low), a `since` date, and an `evidence` citation. Add a rule whenever `CHANGELOG-ENCRYPT.md` records a conceptual shift.
 
+### npm package vs tracked block (advisory)
+
+Every run also prints a `--- npm package vs tracked (skill freshness signal) ---` block that compares the npm-`latest` version of `@encrypt.xyz/pre-alpha-solana-client` against the version recorded in [`docs-revision.md`](docs-revision.md#tracked-npm-package). This is **non-blocking**: never sets exit 2 or 3. Outcomes:
+
+| condition | meaning | action |
+| --- | --- | --- |
+| `in sync` | tracked version matches npm latest | nothing - continue with whatever the `status note` flags (e.g. known asymmetry vs upstream HEAD) |
+| `NPM AHEAD OF SKILL` | npm published a new version since the skill was last refreshed | maintainer to-do: review release notes, refresh the `tracked npm package` table in `docs-revision.md`, audit `gotchas.md` for new items |
+| `tracked newer than npm latest` | skill records a version not yet published (pre-release skew or typo) | verify the recorded value is accurate |
+
+This gives the skill a second freshness signal alongside the `docs/` gate: the published package can lag upstream `main`, ship asymmetric fixes, or get republished without behavior changes. The block surfaces all three patterns without blocking user audits. See the matching protocol note in `CLAUDE.local.md` (root of this repo).
+
 ### `.skill-audit.json` state file
 
 The script writes a small state file at `<root>/.skill-audit.json` after each run, recording the set of rule ids seen in the last audit. On the next run, any rule id not in that set is labelled **NEW since your last sync**. Gitignore it. Delete it to reset the baseline.

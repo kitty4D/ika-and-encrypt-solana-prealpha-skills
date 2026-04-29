@@ -1,5 +1,57 @@
 # changelog - `encrypt-solana-prealpha` skill
 
+## 2026-04-28 - track the npm package version separately + flag the `@encrypt.xyz/pre-alpha-solana-client@0.1.0` pre-fix trap (still on pin `8b8518d`)
+
+### what we learned (real world bug report)
+
+shoutout to ya girl who hit this in a separate project: `@encrypt.xyz/pre-alpha-solana-client@0.1.0` is the only version on npm and it **still ships the pre-fix `encryptValue`** - the helper that emits 16 raw bytes with no fhe_type tag and silently misreads multi-byte scalars (e.g. `EUint64` returns `value >> 8`). upstream fixed this in `303439d` (2026-04-26), but the package has not been republished since 2026-04-03. mhm. so if u read the previous gotcha and went "ok i'll just import the canonical helper" - SIKE, u still got the bug. no bueno.
+
+### what we changed
+
+**capture the lesson:**
+
+- `skills/encrypt-solana-prealpha/references/gotchas.md` - the 17-byte `CreateInput` section now has a "watch out: published npm package is pre-fix" subsection plus a status column on the canonical-helpers table calling out which one ships the bug (the npm one) vs which one is fresh (the repo demo helper at `f098ac9` and later). full template for a hand-rolled `mockEncryptScalarBytes(value, fheType)` is in the same section, and the example points users to delete it once npm bumps past 0.1.0.
+- `skills/encrypt-solana-prealpha/references/grpc-api.md` - TS client snippet rewritten to use the hand-rolled 17-byte helper and away from `encryptValue`. inline warning + cross-link to gotchas.
+- `skills/encrypt-solana-prealpha/references/drift-rules.mjs` - new high-severity rule **`enc-encryptvalue-from-stale-npm-package`**. fires when a TS/JS file BOTH names `encryptValue` AND mentions `@encrypt.xyz/pre-alpha-solana-client`. narrow scope on purpose - we only want to flag this until npm republishes. positive + negative fixtures live at `tests/fixtures/drift-{positive,negative}/encrypt/enc-encryptvalue-from-stale-npm-package.ts`.
+
+**track the npm package as a first-class signal:**
+
+- `skills/encrypt-solana-prealpha/references/docs-revision.md` - new `## tracked npm package` table mirroring the existing `## tracked revision` shape. records the package name, version, publish date, recorded date, and a status note. plus a new "when the npm package bumps" section telling future maintainers what to do (review release notes, refresh table, audit gotchas, possibly retire the drift rule).
+- `skills/encrypt-solana-prealpha/scripts/lib/docs-revision.mjs` - new `parseTrackedNpmPackage(md)` parser. returns null when the section is absent (so older bundles don't break), throws when the section is present but malformed (catches typos). full unit test coverage in `tests/skill-audit/docs-revision.test.mjs` (12 cases now total).
+- `skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs` - new audit block **`--- npm package vs tracked (skill freshness signal) ---`** that compares the tracked version against npm latest using the existing `npmLatest()` helper and `semverCompare()`. **non-blocking** - never sets exit 2 or 3, just emits the diagnostic. status outcomes:
+  - `in sync` (tracked matches npm latest) - default state, just prints the status note from docs-revision.md if any
+  - `NPM AHEAD OF SKILL` (npm published a new version) - prints a follow-up to-do prompting the maintainer to review and refresh
+  - `tracked newer than npm latest` (pre-release or dist-tag skew) - prompts manual verification
+- `skills/encrypt-solana-prealpha/references/audit.md` - documented the new block, including the severity hierarchy (docs/ drift = hard block exit 2, npm package staleness = advisory only).
+- `tests/skill-lint/structure.test.mjs` - new structural lint test asserting the encrypt skill's `docs-revision.md` actually has the `## tracked npm package` section and parses cleanly. catches future accidental deletes.
+
+**the going-forward reminder:**
+
+- `CLAUDE.local.md` (root) - new `## skill update protocol` section. on every encrypt skill update we must check `@encrypt.xyz/pre-alpha-solana-client` on npm: bumped version? new exports? changed behavior? if so, audit the public surface for new gotchas. and if upstream has a fix the package doesn't yet have (current state with the 17-byte fix), the gotchas file MUST call that out so users don't reach for the package helper. happens once, gonna keep happening lol. the audit script's new `--- npm package vs tracked ---` block is the prompt to do this review.
+
+### severity tiering (new)
+
+| signal | severity | audit behavior |
+| --- | --- | --- |
+| `docs/` vs upstream `main` stale | hard block (exit 2) | unchanged |
+| npm package newer than tracked | warn (drift block, follow-up bullet) | new |
+| npm package matches tracked but pre-fix vs upstream | warn (status note in audit block) | new - this is the *current* state |
+
+the third row is the trap that surfaced this whole update. the package is "current" on npm but ships a known-broken helper that upstream already fixed. the audit now surfaces that asymmetry without blocking.
+
+### what we did NOT change
+
+- `references/dsl-vectors.md`, `dsl-types.md`, etc. - book content unchanged this round.
+- `docs-revision.md` upstream pin - still on `8b8518d119a674bb28cf4d89a5f971693899c973`. this update is purely about the npm package surface.
+- `SKILL.md` - common-mistakes table already covers the 17-byte gotcha with a link; no need to add a per-package row.
+- ika-solana-prealpha skill - separate package surface, out of scope. ika doesn't currently wrap an npm package the same way, so no parallel changes needed.
+
+### audit + tests
+
+`node skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs --root=.` reports `docs/ vs main: fresh`, the new `--- npm package vs tracked ---` block in sync at 0.1.0 with the KNOWN STALE status note, drift block clean, exit 0. `npm test` green across the board.
+
+---
+
 ## 2026-04-28 - bump pin to `8b8518d`: vector reductions and rotate_entries land upstream
 
 ### what upstream did

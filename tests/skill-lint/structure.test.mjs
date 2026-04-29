@@ -129,3 +129,43 @@ for (const skill of SKILLS) {
     assert.ok(mod.rules.length > 0, "drift-rules.mjs must have at least one rule");
   });
 }
+
+// the encrypt skill wraps an npm package, so its docs-revision.md must track
+// the published version separately from the upstream commit. structural check
+// only - the parser unit tests live in tests/skill-audit/docs-revision.test.mjs.
+test("encrypt-solana-prealpha: docs-revision.md has tracked npm package section", async () => {
+  const drPath = path.join(
+    REPO,
+    "skills",
+    "encrypt-solana-prealpha",
+    "references",
+    "docs-revision.md",
+  );
+  const text = fs.readFileSync(drPath, "utf8");
+  assert.match(
+    text,
+    /^##\s+tracked npm package\s*$/m,
+    "docs-revision.md missing `## tracked npm package` section",
+  );
+
+  const libPath = path.join(
+    REPO,
+    "skills",
+    "encrypt-solana-prealpha",
+    "scripts",
+    "lib",
+    "docs-revision.mjs",
+  );
+  const mod = await import(
+    "file://" + libPath.replace(/\\/g, "/") + `?t=${Date.now()}`
+  );
+  const r = mod.parseTrackedNpmPackage(text);
+  assert.ok(
+    r,
+    "parseTrackedNpmPackage returned null on the encrypt skill's docs-revision.md",
+  );
+  assert.ok(r.name, "tracked npm package: name missing");
+  assert.ok(r.version, "tracked npm package: version missing");
+  assert.match(r.publishedDate, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(r.recordedDate, /^\d{4}-\d{2}-\d{2}$/);
+});

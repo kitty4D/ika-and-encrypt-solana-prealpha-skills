@@ -192,6 +192,28 @@ export const rules = [
       "[fhe_type || value_le] form per gotchas.md. Files: <LIST>\"",
   },
   {
+    id: "enc-encryptvalue-from-stale-npm-package",
+    since: "2026-04-28",
+    severity: "high",
+    category: "silent-bug",
+    title:
+      "Imports `encryptValue` from `@encrypt.xyz/pre-alpha-solana-client/grpc-web` - npm @0.1.0 still ships the pre-fix 16-byte helper",
+    // Narrow scope: only flags files that BOTH name encryptValue AND mention the package.
+    // The package implementation on npm @0.1.0 emits 16 bytes regardless of how the caller
+    // invokes it, so even the 2-arg form is broken. See gotchas.md for the rationale.
+    appliesTo: EXT_JSLIKE,
+    detect: (text) => {
+      if (!/\bencryptValue\b/.test(text)) return false;
+      if (!/@encrypt\.xyz\/pre-alpha-solana-client/.test(text)) return false;
+      return matchLines(text, /\bencryptValue\b/);
+    },
+    evidence: "gotchas.md grpc-createinput-requires-the-17-byte-input-format",
+    fixPrompt:
+      'Ask the encrypt-solana-prealpha skill: "Replace `encryptValue` from ' +
+      "@encrypt.xyz/pre-alpha-solana-client with a hand-rolled 17-byte helper " +
+      'until the package republishes past 0.1.0. Files: <LIST>"',
+  },
+  {
     id: "enc-pc-swap-delegate-allowance-stale-pattern",
     since: "2026-04-28",
     severity: "medium",

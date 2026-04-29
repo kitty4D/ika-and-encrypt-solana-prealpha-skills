@@ -20,7 +20,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { parseTrackedCommit } from "./lib/docs-revision.mjs";
+import { parseTrackedCommit, parseTrackedNpmPackage } from "./lib/docs-revision.mjs";
 import { parseSkillCanonical } from "./lib/canonical.mjs";
 import { httpsJsonDefault } from "./lib/http.mjs";
 import {
@@ -98,8 +98,7 @@ async function npmLatest(pkgName, cache) {
   }
 }
 
-async function printNpmSdkOutdated(depRows) {
-  const cache = new Map();
+async function printNpmSdkOutdated(depRows, cache = new Map()) {
   console.log("--- npm registry vs lockfile (SDK age) ---");
   let any = false;
   let outdatedCount = 0;
@@ -149,6 +148,49 @@ async function printNpmSdkOutdated(depRows) {
   return { any, outdatedCount, noResolvedLock };
 }
 
+/**
+ * Compare the tracked npm package version (from docs-revision.md) to npm's `latest`.
+ * Advisory only - never sets a non-zero exit code. Returns { ahead, latest } so the
+ * follow-up section can mention it.
+ */
+async function printNpmPackageVsTracked(trackedNpm, cache) {
+  console.log("--- npm package vs tracked (skill freshness signal) ---");
+  if (!trackedNpm) {
+    console.log("(no `tracked npm package` table in docs-revision.md - skipping advisory check)");
+    console.log("");
+    return { ahead: false, latest: null };
+  }
+  console.log(`package: ${trackedNpm.name}`);
+  console.log(
+    `tracked in skill: ${trackedNpm.version} (published ${trackedNpm.publishedDate}, recorded ${trackedNpm.recordedDate})`,
+  );
+  const latest = await npmLatest(trackedNpm.name, cache);
+  if (!latest) {
+    console.log("npm latest:       (could not fetch - offline or registry error)");
+    if (trackedNpm.status) console.log(`status note:      ${trackedNpm.status}`);
+    console.log("");
+    return { ahead: false, latest: null };
+  }
+  console.log(`npm latest:       ${latest}`);
+  const cmp = semverCompare(trackedNpm.version, latest);
+  let ahead = false;
+  if (cmp < 0) {
+    console.log(
+      `status: NPM AHEAD OF SKILL - review @${latest} for new exports / behavior, refresh docs-revision.md tracked npm package table, audit gotchas.md for new items.`,
+    );
+    ahead = true;
+  } else if (cmp > 0) {
+    console.log(
+      `status: tracked version ${trackedNpm.version} newer than npm latest ${latest} (pre-release or dist-tag skew - verify the tracked record is accurate)`,
+    );
+  } else {
+    console.log(`status: in sync (tracked version matches npm latest)`);
+  }
+  if (trackedNpm.status) console.log(`status note:      ${trackedNpm.status}`);
+  console.log("");
+  return { ahead, latest };
+}
+
 function printFollowUpActions(opts) {
   const {
     blockedByStaleDocs,
@@ -161,6 +203,9 @@ function printFollowUpActions(opts) {
     hasPackageJsonUnderRoot,
     driftCriticalCount,
     driftHighCount,
+    trackedPackageAhead,
+    trackedPackageName,
+    trackedPackageLatest,
   } = opts;
   console.log("--- follow-up (optional — you choose) ---");
   const lines = [];
@@ -186,6 +231,11 @@ function printFollowUpActions(opts) {
   }
   if (driftHighCount > 0) {
     lines.push(`Triage ${driftHighCount} HIGH drift finding(s) above.`);
+  }
+  if (trackedPackageAhead) {
+    lines.push(
+      `Skill maintainer to-do: review \`${trackedPackageName}\` @${trackedPackageLatest} for new exports / behavior, then refresh docs-revision.md \`tracked npm package\` table and audit gotchas.md for new items.`,
+    );
   }
   if (npmOutdated > 0) {
     lines.push(`Review ${npmOutdated} OUTDATED SDK line(s): consider upgrading @encrypt.xyz/pre-alpha-solana-client / @solana/kit after release notes.`);
@@ -286,6 +336,13 @@ async function main() {
 
   const docsMd = readText(DOCS_REVISION);
   const tracked = parseTrackedCommit(docsMd);
+  let trackedNpm = null;
+  try {
+    trackedNpm = parseTrackedNpmPackage(docsMd);
+  } catch (e) {
+    console.error(`WARNING: ${e.message}`);
+    console.error("");
+  }
   const canonical = parseSkillCanonical(readText(SKILL_MD));
 
   console.log("encrypt-solana-prealpha audit");
@@ -357,7 +414,9 @@ async function main() {
     }
   }
   console.log("");
-  const npmStats = await printNpmSdkOutdated(depReport);
+  const npmCache = new Map();
+  const npmStats = await printNpmSdkOutdated(depReport, npmCache);
+  const trackedNpmStatus = await printNpmPackageVsTracked(trackedNpm, npmCache);
   console.log("--- canonical literal heuristics (best-effort) ---");
   if (!mismatches.length) {
     console.log("(no mismatches flagged; still do manual flow/grpc/account review)");
@@ -402,6 +461,9 @@ async function main() {
     hasPackageJsonUnderRoot: depReport.length > 0,
     driftCriticalCount,
     driftHighCount,
+    trackedPackageAhead: trackedNpmStatus.ahead,
+    trackedPackageName: trackedNpm?.name ?? null,
+    trackedPackageLatest: trackedNpmStatus.latest,
   });
 
   if (driftMode === "strict" && driftCriticalCount > 0) {

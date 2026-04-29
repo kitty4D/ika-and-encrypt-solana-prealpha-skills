@@ -117,10 +117,14 @@ Actual encrypted data is stored off-chain by the executor — the on-chain accou
 
 **Canonical helpers (use these as templates, do not hand-roll):**
 
-| helper | location | export |
-| --- | --- | --- |
-| `encryptValue(value, fheType)` | `@encrypt.xyz/pre-alpha-solana-client/grpc-web` | npm package |
-| `mockCiphertext(value, fheType)` | `chains/solana/examples/_shared/helpers.ts` | repo demo helper |
+| helper | location | export | status |
+| --- | --- | --- | --- |
+| `encryptValue(value, fheType)` | `@encrypt.xyz/pre-alpha-solana-client/grpc-web` | npm package | **stale - see warning below** |
+| `mockCiphertext(value, fheType)` | `chains/solana/examples/_shared/helpers.ts` | repo demo helper at `f098ac9` and later | **fixed upstream** |
+
+**Watch out: the published npm package is pre-fix.** `@encrypt.xyz/pre-alpha-solana-client@0.1.0` (only version on npm, published 2026-04-03) still ships the **old 16-byte `encryptValue`** — upstream's fix in `303439d` (2026-04-26) has not been republished. Until the package bumps, importing `encryptValue` from `@encrypt.xyz/pre-alpha-solana-client/grpc-web` gives you the bug **regardless of how you call it** (the 2-arg form just gets ignored, the underlying implementation still emits 16 raw bytes).
+
+**Do this instead until the package republishes:** hand-roll a `mockEncryptScalarBytes(value, fheType)` using the template below, and add a code comment pointing at this gotcha so you can rip it out once the package bumps. The skill's [`docs-revision.md`](docs-revision.md#tracked-npm-package) tracks the package version, and the audit script's `--- npm package vs tracked ---` block prompts a re-review when npm publishes a new version.
 
 **Old single-argument `mockCiphertext(value)` is wrong** — it emitted 16 raw bytes with no type tag. Anything cribbed from pre-`303439d` (2026-04-26) examples needs the `fheType` argument added at every call site.
 
