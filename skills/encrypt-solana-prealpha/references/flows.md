@@ -85,4 +85,17 @@ When one program needs to act on whether an FHE op in another program **succeede
 3. **Use** the receipt in the caller's own graphs — every reserve / payout / LP-supply update gates on the receipt. A lying user yields `receipt = 0`, so all gated values collapse to 0 uniformly: pool state stays consistent with no special-case branching, and no plaintext source state ever crosses the boundary.
 4. **Close** the receipt at the end with `close_ciphertext` to reclaim its rent.
 
+### refund pattern: returning slipped / unsettled deposits
+
+Receipt-gating prevents *pool* corruption on a lying user, but the user's deposit still moved into the pool's vault during the CPI. Without an explicit refund, slipped or unsettled deposits get stranded. As of upstream commit `f7f410a` (2026-04-29), pc-swap solves this with a **refund slot in the FHE graph output**:
+
+- **Single-receipt op** (`swap_graph`): graph emits `refund = receipt - final_in`. `refund = 0` on success, `refund = receipt` on slippage rejection (or any other path where `final_in = 0`). The dispatch CPIs the pool-signed `vault_in → user` transfer for `refund` after the payout, so the user's deposit comes back when the swap can't settle.
+- **Multi-receipt op** (`add_liquidity_graph`): settlement gates on **both** receipts being non-zero **and** `lp_to_mint >= 1` (`settled = both_ok && lp_ok`). When one side lies or the proposed LP amount rounds to zero, reserves / supply / LP **don't update** and the graph emits per-side `refund_a = receipt_a - final_a`, `refund_b = receipt_b - final_b`. Dispatch then fires two pool-signed `vault → user` CPIs to return the truthful side without donating to the pool.
+
+**Output-slot re-tagging convention:** to keep account counts down, the same ciphertext account that carried the input (`min_out_ct`, `amt_a_ct`, `amt_b_ct`) gets re-tagged as the refund output. After the graph runs, the account *is* the refund. Dispatch then transfers it out and `close_ciphertext`s it. Read code carefully: a ciphertext's conceptual identity changes mid-flow.
+
+**Stack-frame trap with multiple CPIs:** building the per-CPI metas/views array inline accumulates onto the caller's stack. Pinocchio's BPF stack frame is small; four CPIs in `add_liquidity` (two `TransferWithReceipt` + two refund transfers) overflowed it. Upstream extracted a `#[inline(never)] pool_signed_transfer<'a>(...)` helper so each CPI builds its metas in its own frame. If you compose more than ~3 CPIs in one handler, do the same.
+
+End-to-end coverage for all of the above (forward / reverse / lying / slippage / partial-LP / removeLiq paths) lives in [`chains/solana/examples/pc-swap/e2e/verified.ts`](https://github.com/dwallet-labs/encrypt-pre-alpha/blob/main/chains/solana/examples/pc-swap/e2e/verified.ts) — useful as a reference if you're building a similar receipt-gated DeFi flow.
+
 **When to prefer allowance-based (`Approve` + `TransferFrom`) instead:** the calling program just needs *authorized delivery* and never reads downstream state (e.g. a streaming-payments program). Both patterns ship in `pc-token` — see [pc-token book](https://docs.encrypt.xyz/examples/pc-token/01-overview.html) and [pc-swap book](https://docs.encrypt.xyz/examples/pc-swap/01-overview.html).

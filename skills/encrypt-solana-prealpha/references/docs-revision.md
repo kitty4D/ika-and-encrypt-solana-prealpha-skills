@@ -6,12 +6,12 @@ Published book: [Encrypt Developer Guide](https://docs.encrypt.xyz/) is built fr
 
 | field | value |
 | --- | --- |
-| commit (full) | `8b8518d119a674bb28cf4d89a5f971693899c973` |
-| commit (short) | `8b8518d` |
-| upstream commit date (UTC) | 2026-04-28 |
-| recorded in skill | 2026-04-28 |
+| commit (full) | `6c9f7f94b683e2437354210d58f169bc79c78e3c` |
+| commit (short) | `6c9f7f9` |
+| upstream commit date (UTC) | 2026-04-29 |
+| recorded in skill | 2026-04-29 |
 
-**Interpretation:** This skill’s prose was last aligned with the **`docs/`** tree at the commit above on **`main`**. **Only** changes under `docs/` in `encrypt-pre-alpha` matter when deciding whether book-derived summaries in this bundle may be stale (program, proto, or crate churn still warrants a maintainer pass if behavior changes).
+**Interpretation:** This skill’s prose was last aligned with `main` at the commit above. The hard `docs/` gate fires only when files under `docs/` change between this pin and `main` (book-derived summaries in this bundle may be stale). The audit's separate non-docs/ advisory block surfaces code / proto / crate / example churn since the pin so maintainers can decide whether the change is worth a content refresh.
 
 ## tracked npm package
 
@@ -20,23 +20,31 @@ Published book: [Encrypt Developer Guide](https://docs.encrypt.xyz/) is built fr
 | package | `@encrypt.xyz/pre-alpha-solana-client` |
 | version | `0.1.0` |
 | published (UTC) | 2026-04-03 |
-| recorded in skill | 2026-04-28 |
-| status | **KNOWN STALE vs upstream** - ships the pre-fix `encryptValue` helper (16 bytes, no type tag). Upstream fixed this in `303439d` (2026-04-26). Until republished, prefer hand-rolled 17-byte helpers - see [`gotchas.md`](gotchas.md#grpc-createinput-requires-the-17-byte-input-format). |
+| recorded in skill | 2026-04-29 |
+| status | **KNOWN STALE vs upstream** — ships the pre-fix `encryptValue` helper (16 bytes, no type tag; upstream fix `303439d`, 2026-04-26) **and** a `Buffer[]` typing for `CreateInputResult.ciphertextIdentifiers` that upstream re-typed to `Uint8Array[]` in `6c9f7f9` (2026-04-29). Until republished, hand-roll a 17-byte input helper and treat the upstream TS types as source of truth — see [`gotchas.md`](gotchas.md#grpc-createinput-requires-the-17-byte-input-format). |
 
 **Interpretation:** The published npm package is a separate freshness signal from `docs/`. A new package version doesn't invalidate the skill (so this never blocks the audit), but it's a prompt to review the package's public surface for new exports / behavior changes worth flagging in [`gotchas.md`](gotchas.md). Treat **NPM AHEAD OF SKILL** as a maintainer to-do, not a user-facing error.
 
-## detecting updates (docs/ only)
+## detecting updates
 
-1. **Compare** the tracked commit to `main`, **restricted to `docs/`**:
+The audit script splits upstream churn into two tiers:
+
+1. **Hard gate (`docs/` only).** If any file under `docs/` changed between the pin and `main`, the audit blocks (exit 2) until the pin is bumped or `--force` is passed. Compare:
    - **GitHub:** `GET https://api.github.com/repos/dwallet-labs/encrypt-pre-alpha/compare/<tracked-commit>...main` — if any `files[].filename` starts with `docs/`, mdbook sources changed.
    - **Local clone:** `git fetch origin && git diff <tracked-commit>..origin/main -- docs`
-
-2. **Hosted site** may lag `main`; the `docs/` tree at the commit you care about is the tie-breaker.
+2. **Non-blocking advisory (everything else).** The audit's `--- non-docs/ commits since pin (advisory) ---` block lists commits since the pin that touched code / proto / crate / example paths. These don't fire the hard gate, but they should prompt a maintainer pass when refreshing the skill — code-level fixes, new helpers, or behavior changes can introduce gotchas even when the book stays still.
+3. **Hosted site** may lag `main`; the `docs/` tree at the commit you care about is the tie-breaker.
 
 ## when docs have changed
 
 - **Inform the human user** that Encrypt **documentation** has moved ahead of this skill’s recorded revision.
 - Suggest they **disable or refresh** this skill bundle until updated, or verify against the live [docs.encrypt.xyz](https://docs.encrypt.xyz/) and repo `docs/`.
+
+## when only non-docs/ paths have changed
+
+- The audit prints the commit list as an advisory; review it on every refresh.
+- Updates to `chains/solana/clients/typescript/`, `chains/solana/examples/`, `crates/`, or `proto/` may introduce new gotchas, deprecate canonical helpers, or re-shape recommended patterns even without touching `docs/`.
+- After review, bump the tracked commit to clear the advisory and refresh any affected reference files.
 
 ## when the npm package bumps
 

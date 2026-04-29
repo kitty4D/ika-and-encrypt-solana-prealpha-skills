@@ -1,5 +1,38 @@
 # changelog - `encrypt-solana-prealpha` skill
 
+## 2026-04-29 - bump pin to `6c9f7f9`: pc-swap refund pattern + TS sdk Buffer→Uint8Array note + non-docs/ advisory in audit
+
+### what upstream did (the short version)
+
+2 commits since the previous `8b8518d` pin, both 2026-04-29, neither touching `docs/` (so the previous audit said "fresh" and we only caught it bc we asked, lol):
+
+- **`f7f410a` - pc-swap: refund slipped swaps and one-sided lying deposits.** big behavior expansion of the receipt-gated composability we just documented in flow 7. `swap_graph` now emits `refund = receipt - final_in` (= 0 on success, = receipt on slippage rejection). `add_liquidity_graph` gates settlement on `both_ok && lp_ok` and emits per-side `refund_a` / `refund_b` when one side lies. dispatch CPIs vault→user transfers for refunds so slipped or unsettled deposits don't get stranded in the pool's vault. also extracted `pool_signed_transfer<'a>` as `#[inline(never)]` to keep four CPIs from blowing the BPF stack frame. e2e in `chains/solana/examples/pc-swap/e2e/verified.ts` (new file, 11 stages) covers all the lying / slipping paths.
+- **`6c9f7f9` - sdk: typescript build fix for TS 5.7+.** changes `CreateInputResult.ciphertextIdentifiers` from `Buffer[]` to `Uint8Array[]` (Buffer extends Uint8Array so runtime is fine, but TS-strict callers will see compile errors against the npm types until the package republishes). adds `@types/node`, overrides `noUncheckedIndexedAccess` / `noImplicitOverride` on the SDK package's tsconfig. user-facing TS API change.
+
+both changes are in `chains/...` paths only, which is exactly the gap the user flagged: the audit's `docs/`-only freshness check let real upstream behavior changes slide.
+
+### what we changed in this skill (files)
+
+- **`skills/encrypt-solana-prealpha/references/docs-revision.md`** - bumped pin from `8b8518d` (2026-04-28) to **`6c9f7f94b683e2437354210d58f169bc79c78e3c`** (2026-04-29). updated the `tracked npm package` table's status note to mention BOTH the `encryptValue` 17-byte fix (`303439d`) AND the new `Buffer[]` → `Uint8Array[]` TS API change (`6c9f7f9`) - both upstream, neither in npm @0.1.0. expanded the `## detecting updates` section to document the new two-tier model: hard `docs/` gate vs non-blocking advisory for everything else.
+- **`skills/encrypt-solana-prealpha/references/flows.md`** - extended **flow 7 (cross-program composability)** with a new **`### refund pattern: returning slipped / unsettled deposits`** subsection. covers single-receipt `swap_graph` refund slot, multi-receipt `add_liquidity_graph` per-side refunds with `both_ok && lp_ok` gating, the output-slot re-tagging convention (input ciphertext becomes refund output), and the `pool_signed_transfer` `#[inline(never)]` helper for stack-frame management with multiple CPIs. links to the upstream `verified.ts` e2e as a reference.
+- **`skills/encrypt-solana-prealpha/references/gotchas.md`** - generalized the "watch out: published npm package is pre-fix" warning into a 2-row table. now flags BOTH the `encryptValue` silent-correctness bug AND the TS `Buffer[]` → `Uint8Array[]` mismatch as standing items until the package republishes. same actionable advice (hand-roll, treat upstream TS types as source of truth).
+- **`skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs`** - new `--- non-docs/ commits since pin (advisory) ---` block prints on every audit run. lists every commit between the pin and `main` regardless of which paths each commit touched, with `<short-sha> <date> <title>` format and a sample of non-docs files changed. **never blocks** the audit (still exit 0 / 2 / 3 same as before based on `docs/` and drift-strict only). adds a follow-up line "Skill maintainer to-do: review the `non-docs/ commits since pin` block above" when the advisory has content. also threads the advisory flag into the blocked-by-stale-docs follow-up so users get the full picture even on exit 2.
+- **`skills/encrypt-solana-prealpha/references/audit.md`** - new `### Non-docs/ commits since pin (advisory)` subsection documenting the new block, with a table citing `f7f410a` and `6c9f7f9` as the real-world examples that prompted adding it.
+
+### what we did NOT change
+
+- **`docs/`-only hard gate is unchanged.** still exit 2 on `docs/` drift. the new advisory is purely additive output.
+- **no new drift rules.** the upstream changes are behavior / API shifts, not code patterns we can mechanically detect in user repos. the existing `enc-encryptvalue-from-stale-npm-package` rule already covers the most-likely landmine.
+- **no `book-snapshots.md` / `developer-guide-map.md` updates.** the changes are all in `chains/...`, which is link-only (repo source paths, not book-derived prose).
+- **no `instructions.md` change.** no Encrypt program ix changes - the receipt-gated refund logic lives in the pc-token / pc-swap programs, not the Encrypt program reference.
+- **no canonical environment changes.** program id, gRPC URL, RPC URL all unchanged.
+
+### audit status
+
+`node skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs --root=.` reports **`docs/ vs main: fresh`**, advisory block reports `(no upstream commits since pin)` because we just bumped, drift block clean, exit 0. tested the advisory against an older pin to confirm it correctly lists the 2 commits + 6 non-docs files. ✓
+
+---
+
 ## 2026-04-28 - track the npm package version separately + flag the `@encrypt.xyz/pre-alpha-solana-client@0.1.0` pre-fix trap (still on pin `8b8518d`)
 
 ### what we learned (real world bug report)

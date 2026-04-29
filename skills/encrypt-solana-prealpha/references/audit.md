@@ -37,6 +37,17 @@ Every run also prints a `--- npm package vs tracked (skill freshness signal) ---
 
 This gives the skill a second freshness signal alongside the `docs/` gate: the published package can lag upstream `main`, ship asymmetric fixes, or get republished without behavior changes. The block surfaces all three patterns without blocking user audits. See the matching protocol note in `CLAUDE.local.md` (root of this repo).
 
+### Non-docs/ commits since pin (advisory)
+
+The script also prints a `--- non-docs/ commits since pin (advisory) ---` block on every run, listing commits between the pin and `main` regardless of which paths each commit touched. The hard `docs/` gate still only fires on `docs/` changes (so this block never blocks the audit), but skill maintainers should review it on every refresh: code / proto / crate / example churn can introduce new gotchas, deprecate canonical helpers, or re-shape recommended patterns even when the book stays still. Two real-world examples that prompted adding this block:
+
+| upstream commit | what it changed | why the docs/-only gate would have missed it |
+| --- | --- | --- |
+| `f7f410a` (2026-04-29) | pc-swap refund mechanics for slipped swaps and one-sided lying deposits | `chains/solana/examples/pc-swap/...` only |
+| `6c9f7f9` (2026-04-29) | TS SDK build fix; `CreateInputResult.ciphertextIdentifiers` re-typed `Buffer[]` → `Uint8Array[]` | `chains/solana/clients/typescript/...` only |
+
+Both commits warranted skill content updates (flow patterns, gotcha entries) even though `docs/` was untouched. The advisory makes that visible on the next audit run.
+
 ### `.skill-audit.json` state file
 
 The script writes a small state file at `<root>/.skill-audit.json` after each run, recording the set of rule ids seen in the last audit. On the next run, any rule id not in that set is labelled **NEW since your last sync**. Gitignore it. Delete it to reset the baseline.

@@ -74,6 +74,8 @@ async function docsDriftSince(tracked) {
   const data = await httpsJson(url, { Accept: "application/vnd.github+json" });
   const files = Array.isArray(data.files) ? data.files : [];
   const docsFiles = files.filter((f) => f.filename && f.filename.startsWith("docs/"));
+  const nonDocsFiles = files.filter((f) => f.filename && !f.filename.startsWith("docs/"));
+  const commits = Array.isArray(data.commits) ? data.commits : [];
   return {
     compareHtml: data.html_url || `https://github.com/${UPSTREAM_REPO}/compare/${tracked}...main`,
     status: data.status,
@@ -81,7 +83,50 @@ async function docsDriftSince(tracked) {
     behindBy: data.behind_by,
     docsFileCount: docsFiles.length,
     docsSample: docsFiles.slice(0, 8).map((f) => f.filename),
+    nonDocsFileCount: nonDocsFiles.length,
+    nonDocsSample: nonDocsFiles.slice(0, 8).map((f) => f.filename),
+    commits: commits.map((c) => ({
+      shortSha: (c.sha || "").slice(0, 7),
+      date: c.commit && c.commit.author && c.commit.author.date
+        ? c.commit.author.date.slice(0, 10)
+        : "",
+      title: c.commit && c.commit.message ? c.commit.message.split(/\r?\n/)[0] : "",
+    })),
   };
+}
+
+function printNonDocsAdvisory(ghDrift) {
+  console.log("--- non-docs/ commits since pin (advisory) ---");
+  if (ghDrift.nonDocsFileCount === 0 && ghDrift.commits.length === 0) {
+    console.log("(no upstream commits since pin, or every commit only touched docs/)");
+    console.log("");
+    return { hasAdvisory: false };
+  }
+  // commits list contains every commit between the pin and main (regardless of which paths each
+  // commit touched). prefer that as the headline since it answers "is upstream moving?" directly.
+  const commitCount = ghDrift.commits.length;
+  if (commitCount > 0) {
+    console.log(`${commitCount} commit(s) since pin — showing newest first:`);
+    for (const c of ghDrift.commits.slice().reverse().slice(0, 8)) {
+      const sha = c.shortSha || "???????";
+      const date = c.date || "??????????";
+      const title = c.title || "(no title)";
+      console.log(`  ${sha} ${date}  ${title}`);
+    }
+    if (commitCount > 8) console.log(`  ... and ${commitCount - 8} older`);
+  }
+  if (ghDrift.nonDocsFileCount > 0) {
+    console.log(
+      `non-docs/ files changed (${ghDrift.nonDocsFileCount}): ${ghDrift.nonDocsSample.join(", ")}${
+        ghDrift.nonDocsFileCount > ghDrift.nonDocsSample.length ? " ..." : ""
+      }`,
+    );
+  } else {
+    console.log("non-docs/ files changed: 0 (commits exist but none touched code paths)");
+  }
+  console.log("note: this block is advisory only — it never blocks the audit. review when refreshing the skill.");
+  console.log("");
+  return { hasAdvisory: true };
 }
 
 async function npmLatest(pkgName, cache) {
@@ -206,12 +251,16 @@ function printFollowUpActions(opts) {
     trackedPackageAhead,
     trackedPackageName,
     trackedPackageLatest,
+    nonDocsAdvisory,
   } = opts;
   console.log("--- follow-up (optional — you choose) ---");
   const lines = [];
   if (blockedByStaleDocs) {
     lines.push(`Bump skill [\`docs-revision.md\`] to encrypt-pre-alpha \`main\` and refresh references, then re-run this script until \`docs/ vs main: fresh\`. Compare: ${compareUrl}`);
     lines.push("Or use audit-force / `--force` only after you accept that book-derived skill text may be wrong for current `docs/`.");
+    if (nonDocsAdvisory) {
+      lines.push("Also review the `non-docs/ commits since pin (advisory)` block above — code / proto / example churn since the pin can introduce gotchas even without docs/ changes.");
+    }
     lines.push("Project scan did not run — re-run without stale (or with `--force`) to get SDK + canonical checks.");
     for (let i = 0; i < lines.length; i++) console.log(`${i + 1}. ${lines[i]}`);
     console.log("");
@@ -235,6 +284,11 @@ function printFollowUpActions(opts) {
   if (trackedPackageAhead) {
     lines.push(
       `Skill maintainer to-do: review \`${trackedPackageName}\` @${trackedPackageLatest} for new exports / behavior, then refresh docs-revision.md \`tracked npm package\` table and audit gotchas.md for new items.`,
+    );
+  }
+  if (nonDocsAdvisory) {
+    lines.push(
+      "Skill maintainer to-do: review the `non-docs/ commits since pin` block above — code / proto / example churn may warrant a content refresh even when docs/ is fresh.",
     );
   }
   if (npmOutdated > 0) {
@@ -369,6 +423,11 @@ async function main() {
   }
   console.log("");
 
+  // Always print the non-docs/ advisory — it's the answer to "is upstream moving even when docs/
+  // looks fresh?" and was added because two pc-swap / SDK commits slipped under the docs/-only gate
+  // on 2026-04-29.
+  const nonDocsAdvisory = printNonDocsAdvisory(ghDrift);
+
   if (stale && !force) {
     console.error("Blocked: update docs-revision / skill or re-run with --force (audit-force mode).");
     console.error("");
@@ -383,6 +442,7 @@ async function main() {
       hasPackageJsonUnderRoot: false,
       driftCriticalCount: 0,
       driftHighCount: 0,
+      nonDocsAdvisory: nonDocsAdvisory.hasAdvisory,
     });
     process.exit(2);
   }
@@ -464,6 +524,7 @@ async function main() {
     trackedPackageAhead: trackedNpmStatus.ahead,
     trackedPackageName: trackedNpm?.name ?? null,
     trackedPackageLatest: trackedNpmStatus.latest,
+    nonDocsAdvisory: nonDocsAdvisory.hasAdvisory,
   });
 
   if (driftMode === "strict" && driftCriticalCount > 0) {

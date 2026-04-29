@@ -1,6 +1,6 @@
 ---
 name: encrypt-solana-prealpha
-description: Use when integrating Encrypt on Solana pre-alpha (devnet): FHE DSL (`#[encrypt_fn]`, graphs, ciphertexts), on-chain `execute_graph` / fees / events, Encrypt gRPC `CreateInput` and `ReadCiphertext`, `@encrypt.xyz/pre-alpha-solana-client`, or when the book vs `encrypt-pre-alpha` docs/ drift, NEK or `authorized` wiring errors, vector vs scalar graph issues, mock executor / BPF / ciphertext surprises, disambiguating Encrypt from ika dWallet signing, or running the skill's `audit` / `audit-force` / `audit-fix` verbs for freshness gating and drift remediation.
+description: Use when integrating Encrypt on Solana pre-alpha (devnet): FHE DSL (`#[encrypt_fn]`, graphs, ciphertexts), on-chain `execute_graph` / fees / events, Encrypt gRPC `CreateInput` and `ReadCiphertext`, `@encrypt.xyz/pre-alpha-solana-client`, or when the book vs `encrypt-pre-alpha` docs/ drift, NEK or `authorized` wiring errors, vector vs scalar graph issues, mock executor / BPF / ciphertext surprises, disambiguating Encrypt from ika dWallet signing, or running the skill's `audit` / `audit-force` / `audit-fix` verbs.
 ---
 
 # encrypt solana pre-alpha
