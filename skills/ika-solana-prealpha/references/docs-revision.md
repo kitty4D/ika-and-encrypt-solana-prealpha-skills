@@ -17,6 +17,18 @@ Published book: [solana pre-alpha docs](https://solana-pre-alpha.ika.xyz/) is bu
 
 **Interpretation:** This skill’s prose and book-derived summaries were last aligned with the **`docs/`** tree at that commit. **Only** changes under `docs/` in `ika-pre-alpha` matter when deciding whether this skill’s documentation excerpts may be stale (ignore unrelated program, proto, or crate churn unless the maintainer also updates this bundle).
 
+## tracked npm package
+
+| field | value |
+| --- | --- |
+| package | `@ika.xyz/pre-alpha-solana-client` |
+| version | `0.1.1` |
+| published (UTC) | 2026-04-22 |
+| recorded in skill | 2026-05-11 |
+| status | **in sync** — `0.1.1` is the current npm `latest`. No upstream-vs-npm asymmetry flagged at this revision. The audit script's `--- npm registry vs lockfile (SDK age) ---` block scans consumer lockfiles dynamically (`@ika.xyz/pre-alpha-solana-client`, `@solana/kit`) and surfaces any pin that drifts away from npm `latest`. |
+
+**Interpretation:** The published npm package is a separate freshness signal from `docs/`. A new package version doesn't invalidate the skill (so this never blocks the audit), but it's a prompt to review the package's public surface for new exports / behavior changes worth folding into [`grpc-api.md`](grpc-api.md), [`flows.md`](flows.md), or the drift catalog in [`drift-rules.mjs`](drift-rules.mjs). Treat **NPM AHEAD OF SKILL** as a maintainer to-do, not a user-facing error.
+
 ## devnet spot-check (account `space`)
 
 Optional sanity check that deployed program account sizes match the book: `getProgramAccounts` on the dWallet program id with `filters: [{ "dataSize": N }]` and compare each result’s `account.space` to **`docs/src/reference/accounts.md`** in `ika-pre-alpha` at the tracked commit.
@@ -41,4 +53,15 @@ If `docs/` on `main` differs from the tracked revision:
 - **Inform the human user** that the ika-pre-alpha **documentation** (mdbook sources under `docs/` in `ika-pre-alpha`) has been updated since this skill was recorded.
 - State that **this skill may be outdated** or wrong for new prose and examples.
 - Suggest they **disable or stop using this skill** until they obtain an updated skill bundle from the maintainer (or re-verify against the live book), rather than relying on this snapshot.
+
+## when the npm package bumps
+
+When `@ika.xyz/pre-alpha-solana-client` publishes a new version, the audit script's `--- npm registry vs lockfile (SDK age) ---` block will surface it (against any consumer lockfile under `--root`). **Maintainer action:**
+
+1. Read the package's release notes / git diff for the new version.
+2. Update the `tracked npm package` table above (version, published date, recorded date, status note).
+3. Re-review [`grpc-api.md`](grpc-api.md), [`flows.md`](flows.md), [`account-layouts.md`](account-layouts.md), and [`drift-rules.mjs`](drift-rules.mjs) for newly-relevant items — especially anything that contradicts what `0.1.x` ships (new exports, renamed types, BCS layout shifts).
+4. If the new version fixes a previously-flagged trap, retire or downgrade the related drift rule.
+
+The hard `docs/` gate (exit 2) is unchanged — npm drift is an advisory signal only and never blocks the audit.
 

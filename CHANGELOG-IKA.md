@@ -1,5 +1,30 @@
 # changelog - `ika-solana-prealpha` skill
 
+## 2026-05-11 - protocol alignment: explicit `@ika.xyz/pre-alpha-solana-client@0.1.1` pin in `docs-revision.md` (no upstream drift, pin still `3bd7945`)
+
+### what changed
+
+- **`skills/ika-solana-prealpha/references/docs-revision.md`** - new **`## tracked npm package`** section mirroring the encrypt skill's structure. records the package name (**`@ika.xyz/pre-alpha-solana-client`**), version (**`0.1.1`**, published 2026-04-22), recorded date (2026-05-11), and a status note. plus the matching **Interpretation** paragraph and a new **`## when the npm package bumps`** section at the bottom telling future maintainers what to do (review release notes, refresh the table, audit grpc-api / flows / account-layouts / drift-rules for new items).
+- **`CHANGELOG-IKA.md`** - this entry, lol.
+
+### why now
+
+`CLAUDE.local.md`'s **`## skill update protocol`** section says any skill that wraps an npm package must track BOTH the upstream commit AND the published package version in `docs-revision.md`. encrypt has been doing this since 2026-04-28. ika hadn't bothered bc the audit script already scans consumer lockfiles dynamically and surfaces npm-vs-lockfile drift in the **`--- npm registry vs lockfile (SDK age) ---`** block. but the human-facing record was incomplete - anyone reading `docs-revision.md` had to dig into the audit script to know what version was current. mhm not cute. now the table makes it scannable.
+
+### what we did NOT change
+
+- **upstream commit pin stays at `3bd7945e012950e54fb4d0057b72a7d466556fc1`** (2026-04-17). GitHub compare against `main` returned `status: identical`, 0 commits ahead. no `docs/` drift, no non-docs/ drift. the skill's prose is still aligned.
+- **`recorded in skill` in the `## tracked revision` table stays at 2026-04-17.** the commit hasn't been re-touched; only the new npm table is new. the changelog-vs-pin lint test parses the FIRST `recorded in skill` date in the file (regex without `/g`), so this stays the canonical anchor.
+- **no audit script change.** per `CLAUDE.local.md`'s plan and the encrypt skill's audit lib design, `parseTrackedNpmPackage` lives in the encrypt scripts only; the ika audit's npm freshness signal comes from lockfile scanning. adding a `--- npm package vs tracked ---` block to the ika audit (parallel to encrypt's) would need a new lib + lib tests + structure-test assertion, which is structural parity work for a future pass, not part of this refresh.
+- **no drift rule edits.** the 6 existing ika drift rules (`ika-mock-sign-is-error-assumption`, `ika-pda-seed-simplified-triple`, `ika-message-hash-terminology`, `ika-non-canonical-grpc-host`, `ika-non-canonical-program-id`, `ika-attestation-no-version-tag`) all still apply at the current pin.
+- **no `gotchas.md`-equivalent file added.** ika's gotchas live in `drift-rules.mjs` titles + CHANGELOG entries, which has been a working design choice; no need to fork the pattern.
+
+### audit status
+
+`node skills/ika-solana-prealpha/scripts/audit-ika-solana-prealpha.mjs --root=.` reports **`docs/ vs main: fresh`** (compare URL points at `3bd7945...main` with 0 commits ahead), npm lockfile scan finds no `@ika.xyz/pre-alpha-solana-client` or `@solana/kit` under the repo root (expected - the repo itself is the skill bundle, not a consumer app), drift block clean, exit 0. ✓
+
+---
+
 ## 2026-04-26 - CSO: hub trim + `solana-vs-sui-ika` extract
 
 ### what changed

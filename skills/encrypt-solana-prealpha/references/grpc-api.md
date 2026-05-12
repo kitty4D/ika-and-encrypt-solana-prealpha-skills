@@ -66,27 +66,13 @@ let ct = client.create_input::<Uint64>(42u64, &program_id, &network_key).await?;
 
 **TypeScript** (from upstream README pattern):
 
-> **Warning:** `@encrypt.xyz/pre-alpha-solana-client@0.1.0` (only version on npm) ships a **pre-fix `encryptValue`** that emits 16 bytes with no type tag — silent multi-byte scalar bug. Until the package republishes past 0.1.0, hand-roll the 17-byte helper instead. See [`gotchas.md`](gotchas.md#grpc-createinput-requires-the-17-byte-input-format) for the canonical template and the rationale.
-
 ```typescript
 import { createEncryptClient, Chain } from "@encrypt.xyz/pre-alpha-solana-client/grpc";
-// browsers / web workers: import { createEncryptWebClient } from "@encrypt.xyz/pre-alpha-solana-client/grpc-web";
-// NOTE: do not import { encryptValue } until the package republishes — it ships pre-fix on @0.1.0.
-
-// Hand-rolled 17-byte scalar input encoder. Replace with package helper after npm bumps past 0.1.0.
-function mockEncryptScalarBytes(value: bigint, fheType: number): Uint8Array {
-  const buf = new Uint8Array(17);
-  buf[0] = fheType;
-  let v = value;
-  for (let i = 0; i < 16; i++) {
-    buf[1 + i] = Number(v & 0xffn);
-    v >>= 8n;
-  }
-  return buf;
-}
+// browsers / web workers: import { createEncryptWebClient, encryptValue } from "@encrypt.xyz/pre-alpha-solana-client/grpc-web";
+import { encryptValue } from "@encrypt.xyz/pre-alpha-solana-client/grpc-web";
 
 const encrypt = createEncryptClient();
-const ct = mockEncryptScalarBytes(42n, 4); // EUint64 = fheType 4
+const ct = encryptValue(42n, 4); // EUint64 = fheType 4 → 17-byte Uint8Array
 const { ciphertextIdentifiers } = await encrypt.createInput({
   chain: Chain.Solana,
   inputs: [{ ciphertextBytes: ct, fheType: 4 }],
@@ -94,5 +80,7 @@ const { ciphertextIdentifiers } = await encrypt.createInput({
   networkEncryptionPublicKey: networkKey,
 });
 ```
+
+`encryptValue` ships in `@encrypt.xyz/pre-alpha-solana-client@0.1.1+` and emits the 17-byte `[fhe_type || value_le]` form natively — see [`gotchas.md`](gotchas.md#grpc-createinput-requires-the-17-byte-input-format) for the format spec and the consequences of skipping the type tag. Older `0.1.0` shipped a 16-byte pre-fix version; the audit script flags any consumer lockfile still on `0.1.0` (drift rule `enc-mock-ciphertext-16-byte-no-type-tag` catches single-arg call sites).
 
 Exact type names and defaults may differ by client version — treat the **repo examples** and generated client as source of truth.

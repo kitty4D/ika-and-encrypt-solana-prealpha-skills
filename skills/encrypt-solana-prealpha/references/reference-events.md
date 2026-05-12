@@ -4,7 +4,7 @@
 
 ---
 
-The Encrypt program emits 5 event types via Anchor-compatible self-CPI. Each event is prefixed with `EVENT_IX_TAG_LE` (8 bytes, `0xe4a545ea51cb9a1d` in LE) followed by a 1-byte event discriminator.
+The Encrypt program emits 5 event types via Anchor-compatible self-CPI. Each event is prefixed with `EVENT_IX_TAG_LE` (8 bytes — the u64 literal `0x1d9acb512ea545e4` serialized little-endian, wire bytes `e4 45 a5 2e 51 cb 9a 1d`) followed by a 1-byte event discriminator. The first wire byte (`0xe4` = 228) overlaps with the EmitEvent instruction discriminator — parsers should treat `data[0..8]` as the full tag and `data[8]` as the event discriminator.
 
 ## Event Discriminators
 

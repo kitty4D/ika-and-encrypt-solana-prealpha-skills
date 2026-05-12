@@ -1,5 +1,47 @@
 # changelog - `encrypt-solana-prealpha` skill
 
+## 2026-05-11 - bump pin to `08f723c`: npm finally republished, the encryptValue trap is dead lol
+
+### what upstream did (the short version)
+
+4 commits since the previous `6c9f7f9` pin. 2 of em touched `docs/` (hard gate fired this time, ya girl was right to ask) + the typescript client got a fresh npm release that lays the long-running 17-byte trap to rest:
+
+- **`247b9ad` (2026-04-30) - docs: fix EVENT_IX_TAG_LE wire bytes.** the previous `0xe4a545ea51cb9a1d` literal was a typo - middle bytes transposed. the canonical u64 is `0x1d9acb512ea545e4`, which little-endian serializes to wire bytes `e4 45 a5 2e 51 cb 9a 1d` (equivalent to `0xe445a52e51cb9a1d` read left-to-right). also clarifies the byte-0 overlap: anchor `EmitEvent` discriminator (228 = `0xe4`) is the same value as `EVENT_IX_TAG_LE[0]`, so parsers should treat `data[0..8]` as the full tag and `data[8]` as the event discriminator. small but our `reference-events.md` was carrying the wrong literal - not cute.
+- **`7a3c347` (2026-04-30) - sdk: mkdir output dirs in generate script for fresh checkouts.** ergonomic, no user-facing surface change.
+- **`dadfff8` (2026-05-06) - deps: pin Agave 4.0 pre-release crates to `=4.0.0-beta.5`.** stability tightening for the rust workspace. no skill prose needs to mention it.
+- **`08f723c` (2026-05-09) - fix encryptValue call in voting example (#8).** updates `docs/src/examples/voting/04-react.md` to call `encryptValue(voteVal, FHE_BOOL)` (2 args) and adds `const FHE_BOOL = 0` near the import. **this is the smoking gun confirming `0.1.1` actually requires the fhe_type arg now**, because if the npm helper still emitted 16 raw bytes regardless of arg count, fixing the example wouldn't be a fix - it'd be cosmetic. mhm.
+
+**and the bigger deal:** `@encrypt.xyz/pre-alpha-solana-client@0.1.1` published 2026-04-30. confirmed via unpkg that the package now ships:
+- `encryptValue(value, fheType)` emits the 17-byte `[fhe_type(1) || value_le(16)]` format with the canonical jsdoc warning baked in - upstream commit `303439d` (2026-04-26) finally made it onto npm.
+- `CreateInputResult.ciphertextIdentifiers` is typed `Uint8Array[]` - upstream `6c9f7f9` (2026-04-29) typing fix shipped too.
+
+both asymmetries we'd been screaming about for 2 weeks are GONE. SIKE turned into actually-fine. the stale-npm drift rule has officially aged out.
+
+### what we changed in this skill (files)
+
+- **`skills/encrypt-solana-prealpha/references/docs-revision.md`** - bumped commit pin from `6c9f7f9` (2026-04-29) to **`08f723ceadb462da09407c405a25ee7214e3ca1c`** (2026-05-09), recorded 2026-05-11. bumped the `tracked npm package` row from `0.1.0` (2026-04-03) to **`0.1.1`** (2026-04-30). rewrote the status note from the multi-paragraph KNOWN STALE asymmetry callout to a single "in sync" line that names which two fixes landed. import `encryptValue` from npm again, no hand-rolled helper required.
+- **`skills/encrypt-solana-prealpha/references/reference-events.md`** - line 7 was carrying the transposed `0xe4a545ea51cb9a1d` literal. replaced with the canonical phrasing: u64 = `0x1d9acb512ea545e4`, LE wire bytes = `e4 45 a5 2e 51 cb 9a 1d`. also folded in the byte-0 overlap clarification from upstream so parsers know how to disambiguate.
+- **`skills/encrypt-solana-prealpha/references/gotchas.md`** - rewrote the **"gRPC `CreateInput` requires the 17-byte input format"** section. dropped the npm-package-lags warning, dropped the asymmetry table, dropped the hand-rolled `mockEncryptScalarBytes` workaround template. canonical-helpers table is now a clean 2-row table with both helpers marked usable. kept the format-and-why prose, kept the "old single-argument `mockCiphertext(value)` is wrong" callout (still applies to anyone copy-pasting pre-`303439d` example code), and replaced the workaround template with a small `encryptValue` import-and-call snippet. also softened the historic-bug paragraph in **"Vector graph outputs when chained"** to note that the client-side fix shipped to npm in `0.1.1` instead of being upstream-only.
+- **`skills/encrypt-solana-prealpha/references/grpc-api.md`** - removed the "do not import encryptValue" warning and the `mockEncryptScalarBytes` hand-rolled snippet. TS sample now imports `encryptValue` from `@encrypt.xyz/pre-alpha-solana-client/grpc-web` and calls `encryptValue(42n, 4)` end-to-end. trailing note explains `0.1.1+` is required and that the existing `enc-mock-ciphertext-16-byte-no-type-tag` drift rule still catches lockfiles stuck on `0.1.0`.
+- **`skills/encrypt-solana-prealpha/references/drift-rules.mjs`** - retired the **`enc-encryptvalue-from-stale-npm-package`** rule entirely. its premise (npm @0.1.0 helper is broken regardless of arg count) is no longer true now that `0.1.1` ships the fix. the more general `enc-mock-ciphertext-16-byte-no-type-tag` rule still flags single-arg call sites + hand-rolled 16-byte buffers, which covers the residual risk (consumers stuck on `0.1.0` or cribbing from old example code).
+- **`tests/fixtures/drift-positive/encrypt/enc-encryptvalue-from-stale-npm-package.ts`** + **`tests/fixtures/drift-negative/encrypt/enc-encryptvalue-from-stale-npm-package.ts`** - deleted both fixtures because the rule is gone. `tests/skill-facts/drift-rules.test.mjs` enforces 1 positive + 1 negative per rule, so keeping the fixtures without the rule would actually break the suite. clean removal, no orphans.
+
+### what we did NOT change
+
+- **`SKILL.md` common-mistakes table** - line 75 already references `encryptValue(v, fheType)` and `mockCiphertext(v, fheType)` as canonical, no edit needed. `0.1.1` made the existing copy accurate without a wording change.
+- **`flows.md` line 35** - same deal, "use `encryptValue` / `mockCiphertext` rather than hand-rolling" was already the right advice; it's just true now.
+- **`Cargo.toml` change at upstream** - Agave 4.0-beta.5 pin is workspace stability tightening; nothing in the skill mentions specific Agave versions, so no edit.
+- **`chains/solana/clients/typescript/package.json` change** - that's just the `0.1.0` → `0.1.1` bump itself, which we surface via the npm-package tracking row in `docs-revision.md`. no skill-content impact.
+- **`fee-and-state-reference.md` line 40** - mentions `EVENT_IX_TAG_LE` conceptually but not the literal bytes, so no edit needed there. only the literal in `reference-events.md` was wrong.
+- **answer sheet / knowledge probe / cso queries** - none of those test fixtures reference the stale-npm gotcha by name, so no test-data edits.
+- **drift rule `enc-mock-ciphertext-16-byte-no-type-tag`** stays. its fixtures stay. its job (catching single-arg call sites + hand-rolled 16-byte buffers) is still real, and `0.1.0` is still on npm waiting for someone to install it. lockfile-pinning consumers will pretty much always lag, so this one earns its keep.
+
+### audit status
+
+`node skills/encrypt-solana-prealpha/scripts/audit-encrypt-solana-prealpha.mjs --root=.` should now report **`docs/ vs main: fresh`**, **`npm package vs tracked: in sync`** (or whatever the script's wording is - point is the asymmetry banner is gone), advisory block reports `(no upstream commits since pin)` because we just bumped, drift block clean, exit 0. running the full `npm test` should land at 206/206 because we dropped 2 rule-fixture tests (1 positive + 1 negative for the retired rule). gonna verify after this lands. ✓
+
+---
+
 ## 2026-04-29 - bump pin to `6c9f7f9`: pc-swap refund pattern + TS sdk Buffer→Uint8Array note + non-docs/ advisory in audit
 
 ### what upstream did (the short version)

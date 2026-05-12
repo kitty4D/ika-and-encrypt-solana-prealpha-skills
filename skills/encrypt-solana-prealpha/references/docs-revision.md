@@ -6,10 +6,10 @@ Published book: [Encrypt Developer Guide](https://docs.encrypt.xyz/) is built fr
 
 | field | value |
 | --- | --- |
-| commit (full) | `6c9f7f94b683e2437354210d58f169bc79c78e3c` |
-| commit (short) | `6c9f7f9` |
-| upstream commit date (UTC) | 2026-04-29 |
-| recorded in skill | 2026-04-29 |
+| commit (full) | `08f723ceadb462da09407c405a25ee7214e3ca1c` |
+| commit (short) | `08f723c` |
+| upstream commit date (UTC) | 2026-05-09 |
+| recorded in skill | 2026-05-11 |
 
 **Interpretation:** This skill’s prose was last aligned with `main` at the commit above. The hard `docs/` gate fires only when files under `docs/` change between this pin and `main` (book-derived summaries in this bundle may be stale). The audit's separate non-docs/ advisory block surfaces code / proto / crate / example churn since the pin so maintainers can decide whether the change is worth a content refresh.
 
@@ -18,10 +18,10 @@ Published book: [Encrypt Developer Guide](https://docs.encrypt.xyz/) is built fr
 | field | value |
 | --- | --- |
 | package | `@encrypt.xyz/pre-alpha-solana-client` |
-| version | `0.1.0` |
-| published (UTC) | 2026-04-03 |
-| recorded in skill | 2026-04-29 |
-| status | **KNOWN STALE vs upstream** — ships the pre-fix `encryptValue` helper (16 bytes, no type tag; upstream fix `303439d`, 2026-04-26) **and** a `Buffer[]` typing for `CreateInputResult.ciphertextIdentifiers` that upstream re-typed to `Uint8Array[]` in `6c9f7f9` (2026-04-29). Until republished, hand-roll a 17-byte input helper and treat the upstream TS types as source of truth — see [`gotchas.md`](gotchas.md#grpc-createinput-requires-the-17-byte-input-format). |
+| version | `0.1.1` |
+| published (UTC) | 2026-04-30 |
+| recorded in skill | 2026-05-11 |
+| status | **in sync** — `0.1.1` ships both fixes the previous `0.1.0` was missing: `encryptValue` now emits the 17-byte `[fhe_type(1) \|\| value_le(16)]` format (upstream `303439d`, 2026-04-26) and `CreateInputResult.ciphertextIdentifiers` is typed `Uint8Array[]` (upstream `6c9f7f9`, 2026-04-29). Importing `encryptValue` from `@encrypt.xyz/pre-alpha-solana-client/grpc-web` is the canonical path again — no hand-rolled helper required. |
 
 **Interpretation:** The published npm package is a separate freshness signal from `docs/`. A new package version doesn't invalidate the skill (so this never blocks the audit), but it's a prompt to review the package's public surface for new exports / behavior changes worth flagging in [`gotchas.md`](gotchas.md). Treat **NPM AHEAD OF SKILL** as a maintainer to-do, not a user-facing error.
 

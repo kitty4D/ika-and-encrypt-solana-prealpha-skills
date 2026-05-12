@@ -14,7 +14,7 @@ When a vector ciphertext produced by one `execute_graph` CPI call is used as an 
 
 **As of the `f098ac9` pin (2026-04-27):** graphs where all inputs come from fresh `createInput` calls are verified working — the official `chains/solana/examples/vector-ops` e2e tests confirm multi-element vectors round-trip correctly in that case. Whether chained graph → graph vector inputs are also now fixed is not covered by the published examples, so assume this limitation may still apply until you field-test it.
 
-**Root cause (historic):** the executor's internal `MockEncryptor` was truncating all ciphertext data to 16 bytes regardless of FHE type, so vector digests were computed on zeros-padded data. This was fixed in the "Add vector support" commit (2026-04-15). A separate but related client-side encoding bug (16-byte input bytes, no type tag) was fixed in commit `303439d` (2026-04-26) — see [gRPC `CreateInput` requires the 17-byte input format](#grpc-createinput-requires-the-17-byte-input-format) below.
+**Root cause (historic):** the executor's internal `MockEncryptor` was truncating all ciphertext data to 16 bytes regardless of FHE type, so vector digests were computed on zeros-padded data. This was fixed in the "Add vector support" commit (2026-04-15). A separate but related client-side encoding bug (16-byte input bytes, no type tag) was fixed in commit `303439d` (2026-04-26) and shipped to npm in `@encrypt.xyz/pre-alpha-solana-client@0.1.1` (2026-04-30) — see [gRPC `CreateInput` requires the 17-byte input format](#grpc-createinput-requires-the-17-byte-input-format) below for the canonical helper.
 
 ---
 
@@ -115,32 +115,31 @@ Actual encrypted data is stored off-chain by the executor — the on-chain accou
 
 `EncryptedInput.ciphertext_bytes` (the bytes you submit to `CreateInput`) must be the executor's **legacy 17-byte format**: one `fhe_type` tag byte followed by 16 little-endian value bytes — `[fhe_type(1) || value_le(16)]`. **Without the type tag**, the executor falls into a fallback path that misreads multi-byte scalars: e.g. `EUint64` returns `value >> 8`. Silent in any flow where corruption hides inside encrypted state — surfaced in `pc-token` only when `unwrap_burn` produced a burned amount that mismatched the receipt's plaintext requested amount, trapping SPL deposits in the vault.
 
-**Canonical helpers (use these as templates, do not hand-roll):**
+**Canonical helpers (use these, do not hand-roll):**
 
-| helper | location | export | status |
-| --- | --- | --- | --- |
-| `encryptValue(value, fheType)` | `@encrypt.xyz/pre-alpha-solana-client/grpc-web` | npm package | **stale - see warning below** |
-| `mockCiphertext(value, fheType)` | `chains/solana/examples/_shared/helpers.ts` | repo demo helper at `f098ac9` and later | **fixed upstream** |
-
-**Watch out: the published npm package lags upstream HEAD.** `@encrypt.xyz/pre-alpha-solana-client@0.1.0` (only version on npm, published 2026-04-03) is the only artifact users can `npm install`, but upstream `chains/solana/clients/typescript/` has accumulated meaningful changes that have **not been republished**:
-
-| upstream fix | commit | status on npm @0.1.0 |
+| helper | location | export |
 | --- | --- | --- |
-| `encryptValue` emits 17 bytes (fhe_type prefix added) | `303439d` (2026-04-26) | **missing — still emits 16 raw bytes** |
-| `CreateInputResult.ciphertextIdentifiers` type: `Buffer[]` → `Uint8Array[]` | `6c9f7f9` (2026-04-29) | **missing — npm @0.1.0 still types as `Buffer[]`** |
+| `encryptValue(value, fheType)` | `@encrypt.xyz/pre-alpha-solana-client/grpc-web` | npm package `@0.1.1+` |
+| `mockCiphertext(value, fheType)` | `chains/solana/examples/_shared/helpers.ts` | repo demo helper |
 
-The first one is a silent-correctness bug (above). The second is a TS-only type mismatch — `Buffer` extends `Uint8Array` so runtime is fine, but anyone typing variables against the upstream `Uint8Array[]` shape (or building under TS 5.7+ strictness) will see compile errors against the npm types until the package bumps.
-
-**Until the package republishes**, importing `encryptValue` from `@encrypt.xyz/pre-alpha-solana-client/grpc-web` gives you the 17-byte bug **regardless of how you call it** (the 2-arg form just gets ignored, the underlying implementation still emits 16 raw bytes). Hand-roll a `mockEncryptScalarBytes(value, fheType)` using the template below, and add a code comment pointing at this gotcha so you can rip it out once the package bumps. The skill's [`docs-revision.md`](docs-revision.md#tracked-npm-package) tracks the package version, and the audit script's `--- npm package vs tracked ---` block prompts a re-review when npm publishes a new version.
+Both emit the 17-byte format and have matching signatures. The npm helper landed in `@encrypt.xyz/pre-alpha-solana-client@0.1.1` (2026-04-30) — older `0.1.0` shipped a 16-byte pre-fix version that the audit script will flag if any consumer lockfile is still pinned to it.
 
 **Old single-argument `mockCiphertext(value)` is wrong** — it emitted 16 raw bytes with no type tag. Anything cribbed from pre-`303439d` (2026-04-26) examples needs the `fheType` argument added at every call site.
 
 ```typescript
-// CORRECT — 17 bytes, fhe_type prefix required
-export function mockCiphertext(value: bigint, fheType: number): Uint8Array {
+// canonical npm import — 17 bytes, fhe_type prefix included
+import { encryptValue } from "@encrypt.xyz/pre-alpha-solana-client/grpc-web";
+
+const ct = encryptValue(42n, 4); // EUint64 = fheType 4 → 17-byte Uint8Array
+```
+
+For reference, the helper internals (matches both `encryptValue` and the repo demo `mockCiphertext`):
+
+```typescript
+export function encryptValue(value: number | bigint, fheType: number): Uint8Array {
   const buf = new Uint8Array(17);
   buf[0] = fheType;
-  let v = value;
+  let v = BigInt(value);
   for (let i = 0; i < 16; i++) {
     buf[1 + i] = Number(v & 0xffn);
     v >>= 8n;
